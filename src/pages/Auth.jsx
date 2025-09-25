@@ -17,6 +17,15 @@ export default function Auth({ onLogin }) {
 
     if (isSignUp) {
       response = await supabase.auth.signUp({ email, password });
+
+      if (response.data?.user?.identities?.length === 0) {
+        setError("User already registered");
+      } else {
+        setError("Thank You for signing up, please check your email.");
+      }
+
+      setLoading(false);
+      return; // prevent auto-login
     } else {
       response = await supabase.auth.signInWithPassword({ email, password });
     }
@@ -32,34 +41,48 @@ export default function Auth({ onLogin }) {
     setLoading(false);
   };
 
-  // ✅ Create user_profiles record if missing
   useEffect(() => {
-    const checkProfile = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user) return;
+    const checkAndCreateProfile = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const currentUser = session?.user;
+      if (!currentUser) return;
 
-      const { data: profile, error } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("user_profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+        .select("id")
+        .eq("id", currentUser.id)
+        .maybeSingle();
 
-      if (!profile) {
-        // Create profile with default role
-        await supabase.from("user_profiles").insert([
-          {
-            id: user.id,
-            email: user.email,
-            role: "user",
-          },
-        ]);
+      if (profileError) {
+        console.error("Error checking profile:", profileError.message);
+        return;
       }
 
-      onLogin(user); // Let parent know we are authenticated
+      if (!profile) {
+        const { error: insertError } = await supabase
+          .from("user_profiles")
+          .insert([
+            {
+              id: currentUser.id,
+              email: currentUser.email,
+              role: "user", // default role
+            },
+          ]);
+
+        if (insertError) {
+          console.error("Error creating profile:", insertError.message);
+          return;
+        }
+
+        console.log("New profile created for:", currentUser.email);
+      }
+
+      onLogin(currentUser); // update state in App.jsx
     };
 
-    checkProfile();
+    checkAndCreateProfile();
   }, []);
 
   return (
