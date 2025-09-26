@@ -7,13 +7,14 @@ export default function EventForm({ user, onEventCreated }) {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState("12:30");
   const [eventType, setEventType] = useState("free");
   const [price, setPrice] = useState("");
   const [seats, setSeats] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  //Combine time and date into a single timestamp string const combinedDateTime = new Date(`${date}T${time}`);
 
   const validate = () => {
     if (!title.trim()) {
@@ -58,23 +59,29 @@ export default function EventForm({ user, onEventCreated }) {
     let image_url = null;
 
     if (imageFile) {
+      //upload img
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const { data, error: uploadError } = await supabase.storage
         .from("event-images")
         .upload(fileName, imageFile);
-
+      console.log("Upload result:", data, "Upload error:", uploadError);
       if (uploadError) {
         console.error("Image upload error:", uploadError.message);
         setLoading(false);
         setErrorMsg("Failed to upload image.");
         return;
       }
-
+      //retrive public url
       const { data: publicUrlData } = supabase.storage
         .from("event-images")
         .getPublicUrl(fileName);
-
+      console.log(
+        "Public URL data:",
+        publicUrlData,
+        "Public URL error:",
+        publicUrlError
+      );
       image_url = publicUrlData.publicUrl;
     }
 
