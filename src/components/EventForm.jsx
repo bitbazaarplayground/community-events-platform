@@ -59,29 +59,29 @@ export default function EventForm({ user, onEventCreated }) {
     let image_url = null;
 
     if (imageFile) {
-      //upload img
+      // Upload image
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const { data, error: uploadError } = await supabase.storage
         .from("event-images")
         .upload(fileName, imageFile);
+
       console.log("Upload result:", data, "Upload error:", uploadError);
+
       if (uploadError) {
         console.error("Image upload error:", uploadError.message);
         setLoading(false);
         setErrorMsg("Failed to upload image.");
         return;
       }
-      //retrive public url
+
+      // Retrieve public URL
       const { data: publicUrlData } = supabase.storage
         .from("event-images")
         .getPublicUrl(fileName);
-      console.log(
-        "Public URL data:",
-        publicUrlData,
-        "Public URL error:",
-        publicUrlError
-      );
+
+      console.log("Public URL data:", publicUrlData);
+
       image_url = publicUrlData.publicUrl;
     }
 
