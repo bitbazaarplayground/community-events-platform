@@ -1,8 +1,7 @@
 // src/pages/Home.jsx
 import { useEffect, useState } from "react";
 import EventCard from "../components/EventCard.jsx";
-import EventForm from "../components/EventForm.jsx";
-import SearchBar from "../components/SearchBar.jsx";
+import Hero from "../components/Hero.jsx";
 import { supabase } from "../supabaseClient.js";
 
 export default function Home({ user, role }) {
@@ -32,16 +31,16 @@ export default function Home({ user, role }) {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <SearchBar />
+      <Hero />
 
       <main className="px-4 md:px-12">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">Upcoming Events</h2>
         </div>
 
-        {isAdmin && (
+        {/* {isAdmin && (
           <EventForm user={user} onEventCreated={handleEventCreated} />
-        )}
+        )} */}
 
         {events.length === 0 ? (
           <p className="text-gray-600">No events found.</p>

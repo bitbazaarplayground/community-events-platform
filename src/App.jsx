@@ -1,8 +1,8 @@
-// src/App.jsx
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
 import Auth from "./pages/Auth.jsx";
+import Browse from "./pages/Browse.jsx";
 import Home from "./pages/Home.jsx";
 import MyEvents from "./pages/MyEvents.jsx";
 import PostEvent from "./pages/PostEvent.jsx";
@@ -47,9 +47,20 @@ export default function App() {
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
+  // ✅ Proper logout
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setUserRole(null);
+    } catch (error) {
+      console.error("Error during logout:", error.message);
+    }
+  };
+
   return (
     <div>
-      <Navbar user={user} role={userRole} onLogout={() => setUser(null)} />
+      <Navbar user={user} role={userRole} onLogout={handleLogout} />
       <main className="p-4">
         <Routes>
           <Route
@@ -62,6 +73,11 @@ export default function App() {
               )
             }
           />
+          <Route
+            path="/browse"
+            element={<Browse user={user} role={userRole} />}
+          />
+
           <Route
             path="/post"
             element={
@@ -86,6 +102,7 @@ export default function App() {
               )
             }
           />
+
           {/* Fallback or 404 */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
