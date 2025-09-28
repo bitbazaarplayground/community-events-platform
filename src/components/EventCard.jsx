@@ -7,7 +7,7 @@ export default function EventCard({
   price,
   location,
   description,
-  event_type,
+  category, // ✅ now comes from categories.name
   seats_left,
   image_url,
   creatorId,
@@ -21,7 +21,7 @@ export default function EventCard({
         .from("user_profiles")
         .select("email")
         .eq("id", creatorId)
-        .maybeSingle(); // safer than .single()
+        .maybeSingle(); // ✅ safer than .single()
 
       if (error) {
         console.error("Error fetching creator:", error.message);
@@ -37,7 +37,7 @@ export default function EventCard({
 
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col">
-      {/* Image with optional badge */}
+      {/* Image with optional category + free badge */}
       <div className="relative">
         <img
           src={image_url || "https://via.placeholder.com/400x250"}
@@ -48,6 +48,13 @@ export default function EventCard({
           alt={title}
           className="h-48 w-full object-cover rounded-t-xl"
         />
+
+        {/* Category tag */}
+        {category && (
+          <span className="absolute top-3 left-3 px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 shadow">
+            {category}
+          </span>
+        )}
 
         {/* Price badge (Free only) */}
         {isFree && (
@@ -100,7 +107,7 @@ export default function EventCard({
         {/* CTA pinned at bottom */}
         <div className="mt-auto">
           <button className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition">
-            {isFree ? "Join Free" : "Buy Now"}
+            {isFree ? "Join Free" : `Buy Now for ${price}`}
           </button>
         </div>
       </div>

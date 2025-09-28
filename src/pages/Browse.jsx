@@ -1,40 +1,75 @@
 // src/pages/Browse.jsx
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom"; // ✅ read URL params
 import EventCard from "../components/EventCard.jsx";
 import FancySearchBar from "../components/FancySearchBar.jsx";
 import { supabase } from "../supabaseClient.js";
 
 export default function Browse() {
   const [events, setEvents] = useState([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [filters, setFilters] = useState({});
+  const location = useLocation(); // ✅ access query params
 
-  const fetchEvents = async (filters = {}) => {
+  const PAGE_SIZE = 12;
+
+  const fetchEvents = async (newFilters = {}, reset = false) => {
+    const appliedFilters = reset ? newFilters : filters;
+    setFilters(appliedFilters);
+
+    const from = reset ? 0 : page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = supabase
       .from("events")
-      .select("*")
-      .order("date_time", { ascending: true });
+      .select("*, categories(name)")
+      .order("date_time", { ascending: true })
+      .range(from, to);
 
-    if (filters.event) {
-      query = query.ilike("title", `%${filters.event}%`);
+    if (appliedFilters.event) {
+      query = query.ilike("title", `%${appliedFilters.event}%`);
     }
-    if (filters.location) {
-      query = query.ilike("location", `%${filters.location}%`);
+    if (appliedFilters.location) {
+      query = query.ilike("location", `%${appliedFilters.location}%`);
     }
-    if (filters.category) {
-      query = query.ilike("event_type", `%${filters.category}%`);
+    if (appliedFilters.category) {
+      query = query.eq("category_id", appliedFilters.category);
     }
 
     const { data, error } = await query;
-    if (!error) setEvents(data);
-    else console.error("Error fetching events:", error.message);
+    if (error) {
+      console.error("Error fetching events:", error.message);
+      return;
+    }
+
+    if (data) {
+      if (reset) {
+        setEvents(data);
+        setPage(1);
+      } else {
+        setEvents((prev) => [...prev, ...data]);
+        setPage((prev) => prev + 1);
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    }
   };
 
+  // ✅ Run on mount, check for ?search= query
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    const params = new URLSearchParams(location.search);
+    const search = params.get("search");
+
+    if (search) {
+      fetchEvents({ event: search }, true); // ✅ pre-filter with search term
+    } else {
+      fetchEvents({}, true);
+    }
+  }, [location.search]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero section */}
+      {/* Hero */}
       <section className="bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-600 text-white py-30 relative overflow-hidden">
         <div className="max-w-5xl mx-auto px-6 text-center translate-y-[-40%] relative z-10">
           <h2 className="text-lg font-semibold text-purple-200">
@@ -47,13 +82,16 @@ export default function Browse() {
 
         {/* Floating Search Bar */}
         <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-[-90%] w-full max-w-4xl px-6 z-20">
-          <div className="bg-white rounded-lg shadow-lg">
-            <FancySearchBar variant="browse" onSearch={fetchEvents} />
+          <div className="bg-white rounded-lg shadow-lg border border-gray-100 hover:shadow-xl transition">
+            <FancySearchBar
+              variant="browse"
+              onSearch={(f) => fetchEvents(f, true)}
+            />
           </div>
         </div>
       </section>
 
-      {/* Featured Events */}
+      {/* Events */}
       <section className="max-w-6xl mx-auto px-6 py-10">
         <h2 className="text-center text-2xl md:text-3xl font-bold text-gray-900">
           Featured Events
@@ -68,15 +106,34 @@ export default function Browse() {
               No events available
             </p>
           ) : (
-            events.map((event) => <EventCard key={event.id} {...event} />)
+            events.map((event) => (
+              <EventCard
+                key={event.id}
+                title={event.title}
+                date={event.date_time}
+                price={event.price}
+                location={event.location}
+                description={event.description}
+                category={event.categories?.name}
+                seats_left={event.seats_left}
+                image_url={event.image_url}
+                creatorId={event.created_by}
+              />
+            ))
           )}
         </div>
 
-        <div className="flex justify-center mt-12">
-          <button className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition">
-            See More Events →
-          </button>
-        </div>
+        {/* Load more */}
+        {hasMore && (
+          <div className="flex justify-center mt-12">
+            <button
+              onClick={() => fetchEvents(filters)}
+              className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition"
+            >
+              See More Events →
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

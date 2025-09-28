@@ -1,5 +1,4 @@
-// src/components/EventForm.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient.js";
 
 export default function EventForm({ user, onEventCreated }) {
@@ -8,43 +7,45 @@ export default function EventForm({ user, onEventCreated }) {
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("12:30");
-  const [eventType, setEventType] = useState("free");
   const [price, setPrice] = useState("");
   const [seats, setSeats] = useState("");
   const [imageFile, setImageFile] = useState(null);
+
+  const [categoryId, setCategoryId] = useState(""); // ✅ selected category
+  const [categories, setCategories] = useState([]); // ✅ available categories
+
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  //Combine time and date into a single timestamp string const combinedDateTime = new Date(`${date}T${time}`);
+
+  // ✅ Fetch categories from Supabase
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase.from("categories").select("*");
+      if (error) {
+        console.error("Error fetching categories:", error.message);
+      } else {
+        setCategories(data);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const validate = () => {
-    if (!title.trim()) {
-      return "Title is required.";
-    }
-    if (!description.trim()) {
-      return "Description is required.";
-    }
-    if (!location.trim()) {
-      return "Location is required.";
-    }
-    if (!date) {
-      return "Date is required.";
-    }
-    if (!time) {
-      return "Time is required.";
-    }
-    if (eventType !== "free" && !price.trim()) {
-      return "Price is required for non‑free events.";
-    }
-    if (!seats || isNaN(seats) || parseInt(seats) <= 0) {
+    if (!title.trim()) return "Title is required.";
+    if (!description.trim()) return "Description is required.";
+    if (!location.trim()) return "Location is required.";
+    if (!date) return "Date is required.";
+    if (!time) return "Time is required.";
+    if (!categoryId) return "Category is required."; // ✅ ensure valid category
+    if (!seats || isNaN(seats) || parseInt(seats) <= 0)
       return "Seats must be a positive number.";
-    }
-    // image is optional
     return null;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+
     const validationError = validate();
     if (validationError) {
       setErrorMsg(validationError);
@@ -53,20 +54,16 @@ export default function EventForm({ user, onEventCreated }) {
 
     setLoading(true);
 
-    // Combine date + time into a proper timestamp string
     const dateTime = `${date}T${time}:00`;
-
     let image_url = null;
 
+    // ✅ Upload image to Supabase Storage
     if (imageFile) {
-      // Upload image
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("event-images")
         .upload(fileName, imageFile);
-
-      console.log("Upload result:", data, "Upload error:", uploadError);
 
       if (uploadError) {
         console.error("Image upload error:", uploadError.message);
@@ -75,28 +72,26 @@ export default function EventForm({ user, onEventCreated }) {
         return;
       }
 
-      // Retrieve public URL
       const { data: publicUrlData } = supabase.storage
         .from("event-images")
         .getPublicUrl(fileName);
 
-      console.log("Public URL data:", publicUrlData);
-
       image_url = publicUrlData.publicUrl;
     }
 
+    // ✅ Insert new event into Supabase
     const { error } = await supabase.from("events").insert([
       {
         title,
         description,
         location,
         date_time: dateTime,
-        event_type: eventType,
-        price: eventType === "free" ? "Free" : price,
+        price: price.trim() === "" ? "Free" : price,
         seats: parseInt(seats),
         seats_left: parseInt(seats),
         created_by: user.id,
         image_url,
+        category_id: categoryId, // ✅ store category relation
       },
     ]);
 
@@ -106,16 +101,16 @@ export default function EventForm({ user, onEventCreated }) {
       console.error("Error creating event:", error.message);
       setErrorMsg("Failed to create event: " + error.message);
     } else {
-      // Reset form
+      // ✅ Reset form
       setTitle("");
       setDescription("");
       setLocation("");
       setDate("");
-      setTime("");
-      setEventType("free");
+      setTime("12:30");
       setPrice("");
       setSeats("");
       setImageFile(null);
+      setCategoryId("");
       setErrorMsg("");
       onEventCreated();
     }
@@ -168,25 +163,27 @@ export default function EventForm({ user, onEventCreated }) {
         />
       </div>
 
+      {/* ✅ Category dropdown */}
       <select
         className="w-full border px-4 py-2 rounded"
-        value={eventType}
-        onChange={(e) => setEventType(e.target.value)}
+        value={categoryId}
+        onChange={(e) => setCategoryId(e.target.value)}
       >
-        <option value="free">Free</option>
-        <option value="fixed">Fixed Price</option>
-        <option value="donation">Donation</option>
+        <option value="">Select a category</option>
+        {categories.map((cat) => (
+          <option key={cat.id} value={cat.id}>
+            {cat.name}
+          </option>
+        ))}
       </select>
 
-      {eventType !== "free" && (
-        <input
-          type="text"
-          placeholder="Price"
-          className="w-full border px-4 py-2 rounded"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-      )}
+      <input
+        type="text"
+        placeholder="Price (leave blank for Free)"
+        className="w-full border px-4 py-2 rounded"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+      />
 
       <input
         type="number"
@@ -205,7 +202,7 @@ export default function EventForm({ user, onEventCreated }) {
 
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
         disabled={loading}
       >
         {loading ? "Saving..." : "Save Event"}

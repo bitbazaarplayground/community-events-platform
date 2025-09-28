@@ -1,35 +1,69 @@
 // src/components/FancySearchBar.jsx
-import { useEffect, useState } from "react";
-import { FaSearch } from "react-icons/fa";
+import { useEffect, useRef, useState } from "react";
+import { FaMapMarkerAlt, FaSearch } from "react-icons/fa";
+import { MdCategory } from "react-icons/md";
+import { supabase } from "../supabaseClient.js";
 
-export default function FancySearchBar({ onSearch, variant = "home" }) {
+export default function FancySearchBar({
+  onSearch,
+  variant = "home",
+  initialQuery = "", // prefill for Home
+  initialFilters = {}, // prefill for Browse: { event, location, category }
+}) {
   const phrases = ["events...", "location...", "event...", "categories..."];
 
-  const [inputValue, setInputValue] = useState("");
+  // ----- Home state -----
+  const [inputValue, setInputValue] = useState(initialQuery);
+  const [userTyped, setUserTyped] = useState(initialQuery.length > 0); // stops auto animation if user typed/prefilled
+  const inputTouchedRef = useRef(false); // ✅ don't fire onSearch on mount
+
+  // Typing animation
   const [text, setText] = useState("");
   const [index, setIndex] = useState(0);
   const [subIndex, setSubIndex] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [blink, setBlink] = useState(true);
-  const [userTyped, setUserTyped] = useState(false);
 
-  // State for browse filters
-  const [eventQuery, setEventQuery] = useState("");
-  const [locationQuery, setLocationQuery] = useState("");
-  const [categoryQuery, setCategoryQuery] = useState("");
+  // ----- Browse filters -----
+  const [eventQuery, setEventQuery] = useState(initialFilters.event || "");
+  const [locationQuery, setLocationQuery] = useState(
+    initialFilters.location || ""
+  );
+  const [categoryQuery, setCategoryQuery] = useState(
+    initialFilters.category || ""
+  );
+  const [categories, setCategories] = useState([]);
+
+  const filtersTouchedRef = useRef(false); // ✅ don't fire onSearch on mount (Browse)
 
   const basePrefix = index === 0 ? "Search " : "Search by ";
 
-  // Typing effect for home placeholder
+  // Keep Home state in sync if initialQuery changes (e.g., when coming back)
+  useEffect(() => {
+    setInputValue(initialQuery);
+    setUserTyped(initialQuery.length > 0);
+    // do NOT set inputTouchedRef.current here to avoid auto firing onSearch
+  }, [initialQuery]);
+
+  // Keep Browse filters in sync if initialFilters changes
+  useEffect(() => {
+    if (variant !== "browse") return;
+    setEventQuery(initialFilters.event || "");
+    setLocationQuery(initialFilters.location || "");
+    setCategoryQuery(initialFilters.category || "");
+    // Do not mark filtersTouchedRef to avoid auto-calling onSearch
+  }, [initialFilters, variant]);
+
+  // ----- Animated placeholder (Home only) -----
   useEffect(() => {
     if (variant !== "home" || index >= phrases.length || userTyped) return;
 
     const current = phrases[index];
-    const speed = deleting ? 50 : 120;
-    const timeout = setTimeout(
-      () => setSubIndex((prev) => prev + (deleting ? -1 : 1)),
-      speed
-    );
+    const speed = deleting ? 50 : 120; // slower delete, moderate typing
+
+    const timeout = setTimeout(() => {
+      setSubIndex((prev) => prev + (deleting ? -1 : 1));
+    }, speed);
 
     if (!deleting && subIndex === current.length) {
       setTimeout(() => setDeleting(true), 1000);
@@ -42,61 +76,91 @@ export default function FancySearchBar({ onSearch, variant = "home" }) {
   }, [subIndex, deleting, index, userTyped, variant]);
 
   useEffect(() => {
-    setText(phrases[index]?.substring(0, subIndex));
+    setText(phrases[index]?.substring(0, subIndex) || "");
   }, [subIndex, index]);
 
-  // Cursor blink
+  // Blinking cursor (Home only if not typed)
   useEffect(() => {
     if (userTyped) return;
     const blinkInterval = setInterval(() => setBlink((prev) => !prev), 500);
     return () => clearInterval(blinkInterval);
   }, [userTyped]);
 
-  // ✅ Debounced search (wait 300ms after typing)
+  // ----- Debounced search -----
   useEffect(() => {
     const handler = setTimeout(() => {
       if (variant === "home") {
-        onSearch?.(inputValue);
+        // fire only after user interacted AND query non-empty
+        if (inputTouchedRef.current && inputValue.trim().length > 0) {
+          onSearch?.(inputValue.trim());
+        }
       } else {
-        onSearch?.({
-          event: eventQuery,
-          location: locationQuery,
-          category: categoryQuery,
-        });
+        // browse: fire only after user interacted with any filter
+        if (filtersTouchedRef.current) {
+          onSearch?.({
+            event: eventQuery,
+            location: locationQuery,
+            category: categoryQuery,
+          });
+        }
       }
     }, 300);
 
     return () => clearTimeout(handler);
   }, [inputValue, eventQuery, locationQuery, categoryQuery, variant, onSearch]);
 
-  // ✅ Instant search on Enter key (NEW)
+  // ----- Instant search on Enter -----
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (variant === "home") {
-        onSearch?.(inputValue); // run immediately
-      } else {
-        onSearch?.({
-          event: eventQuery,
-          location: locationQuery,
-          category: categoryQuery,
-        });
-      }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+
+    if (variant === "home") {
+      const q = inputValue.trim();
+      if (q.length === 0) return; // ignore empty enter
+      onSearch?.(q);
+    } else {
+      onSearch?.({
+        event: eventQuery,
+        location: locationQuery,
+        category: categoryQuery,
+      });
     }
   };
 
-  // ----- Render -----
+  // ----- Fetch categories for Browse dropdown -----
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name");
+      if (error) {
+        console.error("Error fetching categories:", error.message);
+      } else {
+        setCategories(data || []);
+      }
+    };
+    // fetch for both variants (cheap) so the component is self-sufficient
+    fetchCategories();
+  }, []);
+
+  // =======================
+  //        RENDER
+  // =======================
+
   if (variant === "browse") {
     return (
       <div className="bg-white rounded-lg shadow-lg flex flex-col md:flex-row items-center p-3 gap-3">
         {/* Event search */}
         <div className="flex items-center flex-1 border-r px-3">
-          <span className="text-gray-400 mr-2">🔍</span>
+          <FaSearch className="text-purple-600 mr-2" />
           <input
             type="text"
             placeholder="Search Event"
             value={eventQuery}
-            onChange={(e) => setEventQuery(e.target.value)}
+            onChange={(e) => {
+              filtersTouchedRef.current = true; // ✅ user interacted
+              setEventQuery(e.target.value);
+            }}
             onKeyDown={handleKeyDown}
             className="w-full py-2 focus:outline-none text-gray-700"
           />
@@ -104,12 +168,15 @@ export default function FancySearchBar({ onSearch, variant = "home" }) {
 
         {/* Location search */}
         <div className="flex items-center flex-1 border-r px-3">
-          <span className="text-gray-400 mr-2">📍</span>
+          <FaMapMarkerAlt className="text-purple-600 mr-2" />
           <input
             type="text"
             placeholder="Search Location"
             value={locationQuery}
-            onChange={(e) => setLocationQuery(e.target.value)}
+            onChange={(e) => {
+              filtersTouchedRef.current = true; // ✅ user interacted
+              setLocationQuery(e.target.value);
+            }}
             onKeyDown={handleKeyDown}
             className="w-full py-2 focus:outline-none text-gray-700"
           />
@@ -117,20 +184,22 @@ export default function FancySearchBar({ onSearch, variant = "home" }) {
 
         {/* Category dropdown */}
         <div className="flex items-center flex-1 px-3 relative">
-          <span className="text-purple-600 mr-2">🗂️</span>
+          <MdCategory className="text-purple-600 mr-2" />
           <select
             value={categoryQuery}
-            onChange={(e) => setCategoryQuery(e.target.value)}
+            onChange={(e) => {
+              filtersTouchedRef.current = true; // ✅ user interacted
+              setCategoryQuery(e.target.value);
+            }}
             className="w-full py-2 pr-8 bg-white text-gray-700 focus:outline-none appearance-none"
           >
             <option value="">Category</option>
-            <option value="Music">Music</option>
-            <option value="Tech">Tech</option>
-            <option value="Art">Art</option>
-            <option value="Other">Other</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
           </select>
-
-          {/* Custom dropdown arrow */}
           <span className="absolute right-3 text-gray-400 pointer-events-none">
             ▼
           </span>
@@ -146,6 +215,7 @@ export default function FancySearchBar({ onSearch, variant = "home" }) {
             })
           }
           className="bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition"
+          aria-label="Search"
         >
           <FaSearch />
         </button>
@@ -153,20 +223,24 @@ export default function FancySearchBar({ onSearch, variant = "home" }) {
     );
   }
 
-  // ----- Default (Home search bar) -----
+  // ----- Home variant -----
   return (
     <div className="relative max-w-md mx-auto md:mx-0">
       <input
         type="text"
         value={inputValue}
         onChange={(e) => {
+          inputTouchedRef.current = true; // ✅ user interacted (prevents firing on mount)
           setInputValue(e.target.value);
           setUserTyped(e.target.value.length > 0);
         }}
-        onKeyDown={handleKeyDown} // ✅ Added Enter support
+        onKeyDown={handleKeyDown}
         className="w-full border rounded-full px-4 py-3 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+        aria-label="Search"
       />
       <FaSearch className="absolute right-3 top-3 text-gray-400" />
+
+      {/* Animated placeholder (only if user hasn't typed) */}
       {!userTyped && (
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
           {basePrefix + text}
