@@ -6,14 +6,21 @@ import { supabase } from "../supabaseClient.js";
 
 export default function Home({ user, role }) {
   const [events, setEvents] = useState([]);
-  const isAdmin = role === "admin";
 
-  const fetchEvents = async () => {
-    const { data, error } = await supabase
+  // Fetch events (optionally filtered by search query)
+  const fetchEvents = async (query = "") => {
+    let supabaseQuery = supabase
       .from("events")
       .select("*")
       .order("date_time", { ascending: true });
 
+    if (query) {
+      supabaseQuery = supabaseQuery.or(
+        `title.ilike.%${query}%,location.ilike.%${query}%,event_type.ilike.%${query}%,description.ilike.%${query}%`
+      );
+    }
+
+    const { data, error } = await supabaseQuery;
     if (error) {
       console.error("Error fetching events:", error.message);
     } else {
@@ -22,25 +29,16 @@ export default function Home({ user, role }) {
   };
 
   useEffect(() => {
-    fetchEvents();
+    fetchEvents(); // Load all events initially
   }, []);
-
-  const handleEventCreated = () => {
-    fetchEvents(); // Refresh list when new event is created
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <Hero />
+      {/* Hero with search bar */}
+      <Hero onSearch={fetchEvents} />
 
       <main className="px-4 md:px-12">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Upcoming Events</h2>
-        </div>
-
-        {/* {isAdmin && (
-          <EventForm user={user} onEventCreated={handleEventCreated} />
-        )} */}
+        <h2 className="text-xl font-semibold mb-6">Upcoming Events</h2>
 
         {events.length === 0 ? (
           <p className="text-gray-600">No events found.</p>

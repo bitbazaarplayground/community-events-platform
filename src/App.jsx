@@ -47,7 +47,6 @@ export default function App() {
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
-  // ✅ Proper logout
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
