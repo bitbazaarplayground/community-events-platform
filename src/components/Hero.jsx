@@ -4,7 +4,6 @@ import FancySearchBar from "./FancySearchBar.jsx";
 export default function Hero({ onSearch }) {
   return (
     <section className="bg-gradient-to-r from-white to-purple-200">
-      {/* <section className="bg-gradient-to-r from-purple-100 to-purple-300"> */}
       <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center">
         {/* Left content */}
         <div className="flex-1 text-center md:text-left mb-8 md:mb-0">
@@ -16,7 +15,7 @@ export default function Hero({ onSearch }) {
             you.
           </p>
 
-          {/* Search bar (connected to Home) */}
+          {/* ✅ Search now triggers redirect to Browse */}
           <FancySearchBar variant="home" onSearch={onSearch} />
         </div>
 
