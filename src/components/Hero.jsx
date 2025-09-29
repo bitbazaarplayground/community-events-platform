@@ -1,5 +1,5 @@
 // src/components/Hero.jsx
-import FancySearchBar from "./FancySearchBar.jsx";
+import FancySearchBar from "./FancySearchbar.jsx";
 
 export default function Hero({ onSearch }) {
   return (

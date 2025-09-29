@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist", // ⬅️ NEW: put compiled files here
+    "noEmit": true // ⬅️ NEW: don’t actually write files (since Vite handles build)
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "supabase/functions"]
+}
