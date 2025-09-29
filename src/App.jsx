@@ -27,9 +27,15 @@ export default function App() {
           .select("role")
           .eq("id", currentUser.id)
           .maybeSingle();
-        if (profileError) console.error(profileError.message);
-        if (profile) setUserRole(profile.role);
-        else setUserRole("user");
+        if (profileError) {
+          console.warn(
+            "Could not read role (defaulting to 'user'):",
+            profileError.message
+          );
+          setUserRole("user");
+        } else {
+          setUserRole(profile?.role ?? "user");
+        }
       } else {
         setUserRole(null);
       }

@@ -34,35 +34,29 @@ export default function Profile({ user }) {
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
-      setMsg("");
+      setMsg && setMsg(""); // if you keep a message state
 
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select(
-          "email, first_name, last_name, phone, address, allow_email, allow_sms, allow_push, bio, avatar_url"
-        )
-        .eq("id", user.id)
-        .maybeSingle();
-
+      const { data, error } = await supabase.rpc("get_my_profile");
       setLoading(false);
 
       if (error) {
         console.error("Error fetching profile:", error.message);
-        setMsg("Failed to load profile.");
+        // setMsg?.("Failed to load profile."); // optional
         return;
       }
 
-      if (data) {
-        setCurrentEmail(user?.email || data.email || "");
-        setFirstName(data.first_name || "");
-        setLastName(data.last_name || "");
-        setPhone(data.phone || "");
-        setAddress(data.address || "");
-        setAllowEmail(data.allow_email ?? true);
-        setAllowSms(data.allow_sms ?? false);
-        setAllowPush(data.allow_push ?? true);
-        setBio(data.bio || "");
-        setAvatarUrl(data.avatar_url || "");
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        setCurrentEmail?.(user?.email || row.email || "");
+        setFirstName?.(row.first_name || "");
+        setLastName?.(row.last_name || "");
+        setPhone?.(row.phone || "");
+        setAddress?.(row.address || "");
+        setAllowEmail?.(row.allow_email ?? true);
+        setAllowSms?.(row.allow_sms ?? false);
+        setAllowPush?.(row.allow_push ?? true);
+        setBio?.(row.bio || "");
+        setAvatarUrl?.(row.avatar_url || "");
       }
     };
 
