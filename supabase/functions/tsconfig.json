@@ -3,7 +3,9 @@
     "target": "ES2020",
     "module": "ESNext",
     "lib": ["esnext", "dom"],
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true
   },
   "include": ["./**/*.ts"]
 }

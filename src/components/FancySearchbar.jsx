@@ -48,10 +48,11 @@ export default function FancySearchBar({
   // Keep Browse filters in sync if initialFilters changes
   useEffect(() => {
     if (variant !== "browse") return;
-    setEventQuery(initialFilters.event || "");
-    setLocationQuery(initialFilters.location || "");
-    setCategoryQuery(initialFilters.category || "");
-    // Do not mark filtersTouchedRef to avoid auto-calling onSearch
+    if (initialFilters.event !== undefined) setEventQuery(initialFilters.event);
+    if (initialFilters.location !== undefined)
+      setLocationQuery(initialFilters.location);
+    if (initialFilters.category !== undefined)
+      setCategoryQuery(initialFilters.category);
   }, [initialFilters, variant]);
 
   // ----- Animated placeholder (Home only) -----
@@ -97,17 +98,28 @@ export default function FancySearchBar({
       } else {
         // browse: fire only after user interacted with any filter
         if (filtersTouchedRef.current) {
+          const selected = categories.find((c) => c.id === categoryQuery);
           onSearch?.({
             event: eventQuery,
             location: locationQuery,
             category: categoryQuery,
+            categoryLabel: selected?.name || "",
           });
         }
       }
-    }, 300);
+    }, 700); //delay
 
     return () => clearTimeout(handler);
-  }, [inputValue, eventQuery, locationQuery, categoryQuery, variant, onSearch]);
+  }, [
+    inputValue,
+    eventQuery,
+    locationQuery,
+    categoryQuery,
+    variant,
+    onSearch,
+    categories,
+    categoryQuery,
+  ]);
 
   // ----- Instant search on Enter -----
   const handleKeyDown = (e) => {
@@ -189,7 +201,16 @@ export default function FancySearchBar({
             value={categoryQuery}
             onChange={(e) => {
               filtersTouchedRef.current = true; // ✅ user interacted
+              const selected = categories.find((c) => c.id === e.target.value);
               setCategoryQuery(e.target.value);
+
+              // Fire immediately with both id + label
+              onSearch?.({
+                event: eventQuery,
+                location: locationQuery,
+                category: e.target.value,
+                categoryLabel: selected?.name || "",
+              });
             }}
             className="w-full py-2 pr-8 bg-white text-gray-700 focus:outline-none appearance-none"
           >
@@ -207,13 +228,15 @@ export default function FancySearchBar({
 
         {/* Search button */}
         <button
-          onClick={() =>
+          onClick={() => {
+            const selected = categories.find((c) => c.id === categoryQuery);
             onSearch?.({
               event: eventQuery,
               location: locationQuery,
               category: categoryQuery,
-            })
-          }
+              categoryLabel: selected?.name || "",
+            });
+          }}
           className="bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition"
           aria-label="Search"
         >

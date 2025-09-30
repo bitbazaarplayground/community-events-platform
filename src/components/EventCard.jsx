@@ -1,9 +1,11 @@
 // src/components/EventCard.jsx
+
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient.js";
 
 export default function EventCard({
   // Common fields (local or external)
+  id,
   title,
   date, // ISO string
   price,
@@ -16,17 +18,27 @@ export default function EventCard({
   // Local-only
   creatorId, // events.created_by (UUID)
 
-  // External (Eventbrite) optional
-  external_source, // e.g., "eventbrite" | null
-  external_url, // e.g., https://eventbrite.com/...
-  external_organizer, // e.g., "Eventbrite Org Inc."
+  // External (Ticketmaster)
+  external_source, //  "ticketmaster" | null
+  external_url, // external event link
+  external_organizer, // organizer name (if provided)
 }) {
-  const [creator, setCreator] = useState(null); // { first_name, last_name, email, avatar_url }
+  if (import.meta.env.DEV) {
+    console.log("🖼️ Rendering EventCard:", {
+      id,
+      title,
+      date,
+      category,
+      external_source,
+    });
+  }
+
+  const [creator, setCreator] = useState(null);
 
   useEffect(() => {
     let active = true;
     const fetchCreator = async () => {
-      if (!creatorId) return; // only fetch for local events
+      if (!creatorId) return;
       const { data, error } = await supabase
         .from("user_profiles")
         .select("first_name, last_name, email, avatar_url")
@@ -57,10 +69,9 @@ export default function EventCard({
       ? `${creator?.first_name ?? ""} ${creator?.last_name ?? ""}`.trim()
       : creator?.email ?? "";
 
-  const organizer =
-    external_source === "eventbrite"
-      ? external_organizer ?? ""
-      : localDisplayName;
+  const organizer = external_source
+    ? external_organizer ?? ""
+    : localDisplayName;
 
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col">
@@ -76,15 +87,13 @@ export default function EventCard({
           className="h-48 w-full object-cover rounded-t-xl"
         />
 
-        {/* Category tag */}
         {category && (
           <span className="absolute top-3 left-3 px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 shadow">
             {category}
           </span>
         )}
 
-        {/* Free badge */}
-        {isFree && (
+        {isFree && !external_source && (
           <span className="absolute top-3 right-3 px-3 py-1 text-xs font-semibold rounded-full shadow bg-green-100 text-green-700">
             Free
           </span>
@@ -109,7 +118,6 @@ export default function EventCard({
           </p>
         )}
 
-        {/* Seats info (local only, since EB search doesn’t provide this) */}
         {typeof seats_left === "number" && (
           <p className="text-sm mb-2">
             <span className="font-semibold">{seats_left}</span>{" "}
@@ -122,10 +130,9 @@ export default function EventCard({
           </p>
         )}
 
-        {/* Organizer (local creator or external organizer) */}
         {organizer && (
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-            {creator?.avatar_url && external_source !== "eventbrite" && (
+            {creator?.avatar_url && !external_source && (
               <img
                 src={creator.avatar_url}
                 alt={organizer}
@@ -142,19 +149,21 @@ export default function EventCard({
           </div>
         )}
 
-        {/* CTA pinned at bottom */}
+        {/* CTA */}
         <div className="mt-auto">
-          {external_source === "eventbrite" && external_url ? (
+          {external_source === "ticketmaster" && external_url && (
             <a
               href={external_url}
               target="_blank"
               rel="noreferrer"
-              className="inline-block w-full text-center px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition"
-              aria-label="Buy on Eventbrite"
+              className="inline-block w-full text-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition"
+              aria-label="Buy on Ticketmaster"
             >
-              Buy on Eventbrite
+              Buy on Ticketmaster
             </a>
-          ) : (
+          )}
+
+          {!external_source && (
             <button
               type="button"
               className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition"
