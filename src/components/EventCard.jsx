@@ -1,17 +1,22 @@
 // src/components/EventCard.jsx
-
 import { useEffect, useState } from "react";
+import { signUpForEvent } from "../lib/signups.js"; // ← make sure this file exists (we added it earlier)
 import { supabase } from "../supabaseClient.js";
 
+/**
+ * EventCard
+ * - Local events (no external_source): shows "Sign Up" and calls RPC to create a signup.
+ * - External (Ticketmaster): shows "Buy on Ticketmaster" linking to the external_url.
+ */
 export default function EventCard({
-  // Common fields (local or external)
-  id,
+  // Common fields
+  id, // ← required for local sign-up
   title,
   date, // ISO string
   price,
   location,
   description,
-  category, // string (e.g., from categories.name)
+  category, // string (e.g., categories.name)
   seats_left,
   image_url,
 
@@ -19,22 +24,15 @@ export default function EventCard({
   creatorId, // events.created_by (UUID)
 
   // External (Ticketmaster)
-  external_source, //  "ticketmaster" | null
+  external_source, // "ticketmaster" | null
   external_url, // external event link
   external_organizer, // organizer name (if provided)
 }) {
-  if (import.meta.env.DEV) {
-    console.log("🖼️ Rendering EventCard:", {
-      id,
-      title,
-      date,
-      category,
-      external_source,
-    });
-  }
-
   const [creator, setCreator] = useState(null);
+  const [signing, setSigning] = useState(false);
+  const [msg, setMsg] = useState("");
 
+  // Fetch creator only for local events
   useEffect(() => {
     let active = true;
     const fetchCreator = async () => {
@@ -46,13 +44,9 @@ export default function EventCard({
         .maybeSingle();
 
       if (!active) return;
-      if (error) {
-        console.error("Error fetching creator:", error.message);
-      } else {
-        setCreator(data || null);
-      }
+      if (error) console.error("Error fetching creator:", error.message);
+      else setCreator(data || null);
     };
-
     fetchCreator();
     return () => {
       active = false;
@@ -73,26 +67,51 @@ export default function EventCard({
     ? external_organizer ?? ""
     : localDisplayName;
 
+  async function handleSignUp() {
+    setMsg("");
+    if (!id) return; // safety
+    setSigning(true);
+    try {
+      const res = await signUpForEvent(id); // calls RPC sign_up_for_event
+      if (res.ok && res.reason === "signed") {
+        setMsg("✅ You’re signed up!");
+      } else if (res.ok && res.reason === "already_signed") {
+        setMsg("ℹ️ You’re already signed up.");
+      } else if (!res.ok && res.reason === "no_seats") {
+        setMsg("❌ Sorry, this event is full.");
+      } else {
+        setMsg("⚠️ Couldn’t sign you up. Please try again.");
+      }
+    } catch (e) {
+      setMsg(`⚠️ ${e.message || "Sign-up failed"}`);
+    } finally {
+      setSigning(false);
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col">
       {/* Media */}
       <div className="relative">
         <img
-          src={image_url || "https://via.placeholder.com/400x250"}
+          src={image_url || "https://via.placeholder.com/400x250?text=Event"}
           onError={(e) => {
             e.currentTarget.onerror = null;
-            e.currentTarget.src = "https://via.placeholder.com/400x250";
+            e.currentTarget.src =
+              "https://via.placeholder.com/400x250?text=Event";
           }}
           alt={title || "Event image"}
           className="h-48 w-full object-cover rounded-t-xl"
         />
 
+        {/* Category tag */}
         {category && (
           <span className="absolute top-3 left-3 px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 shadow">
             {category}
           </span>
         )}
 
+        {/* Free badge (local only) */}
         {isFree && !external_source && (
           <span className="absolute top-3 right-3 px-3 py-1 text-xs font-semibold rounded-full shadow bg-green-100 text-green-700">
             Free
@@ -118,6 +137,7 @@ export default function EventCard({
           </p>
         )}
 
+        {/* Seats info (local only) */}
         {typeof seats_left === "number" && (
           <p className="text-sm mb-2">
             <span className="font-semibold">{seats_left}</span>{" "}
@@ -130,6 +150,7 @@ export default function EventCard({
           </p>
         )}
 
+        {/* Organizer */}
         {organizer && (
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
             {creator?.avatar_url && !external_source && (
@@ -151,7 +172,7 @@ export default function EventCard({
 
         {/* CTA */}
         <div className="mt-auto">
-          {external_source === "ticketmaster" && external_url && (
+          {external_source === "ticketmaster" && external_url ? (
             <a
               href={external_url}
               target="_blank"
@@ -161,17 +182,24 @@ export default function EventCard({
             >
               Buy on Ticketmaster
             </a>
-          )}
-
-          {!external_source && (
+          ) : (
             <button
               type="button"
-              className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition"
-              aria-label={isFree ? "Join Free" : `Buy Now for ${price}`}
+              onClick={handleSignUp}
+              disabled={signing || seats_left === 0}
+              className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              aria-label={isFree ? "Join Free" : `Sign Up (${price})`}
             >
-              {isFree ? "Join Free" : `Buy Now for ${price}`}
+              {seats_left === 0
+                ? "Sold out"
+                : signing
+                ? "Signing you up…"
+                : isFree
+                ? "Join Free"
+                : `Sign Up (${price})`}
             </button>
           )}
+          {msg && <p className="text-xs mt-2 text-gray-600">{msg}</p>}
         </div>
       </div>
     </div>

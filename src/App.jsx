@@ -4,11 +4,12 @@ import Navbar from "./components/Navbar.jsx";
 import Auth from "./pages/Auth.jsx";
 import Browse from "./pages/Browse.jsx";
 import Home from "./pages/Home.jsx";
+import MyBookingsPage from "./pages/MyBookingsPage.jsx";
 import MyEvents from "./pages/MyEvents.jsx";
 import PostEvent from "./pages/PostEvent.jsx";
 import Profile from "./pages/Profile.jsx";
+import UserDashboard from "./pages/UserDashboard.jsx";
 import { supabase } from "./supabaseClient.js";
-
 export default function App() {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -94,9 +95,25 @@ export default function App() {
             }
           />
           <Route
-            path="/profile"
+            path="/dashboard"
+            element={user ? <UserDashboard user={user} /> : <Navigate to="/" />}
+          />
+
+          <Route
+            path="/profile/edit"
             element={user ? <Profile user={user} /> : <Navigate to="/" />}
           />
+          {/* ADMIN BLOCK */}
+          {/* <Route
+  path="/dashboard"
+  element={user ? <UserDashboard user={user} /> : <Navigate to="/" />}
+/>
+
+<Route
+  path="/profile/edit"
+  element={user ? <Profile user={user} /> : <Navigate to="/" />}
+/> */}
+
           <Route
             path="/myevents"
             element={
@@ -107,6 +124,7 @@ export default function App() {
               )
             }
           />
+          <Route path="/me/events" element={<MyBookingsPage />} />
 
           {/* Fallback or 404 */}
           <Route path="*" element={<Navigate to="/" />} />

@@ -49,10 +49,10 @@ export default function Browse() {
       // 🔑 Map local category → Ticketmaster segment
       const tmCategory =
         CATEGORY_MAP[applied.categoryLabel] ?? applied.categoryLabel ?? "";
-      console.log("Category mapping:", {
-        userSelected: applied.categoryLabel,
-        mappedForTicketmaster: tmCategory,
-      });
+      // console.log("Category mapping:", {
+      //   userSelected: applied.categoryLabel,
+      //   mappedForTicketmaster: tmCategory,
+      // });
 
       const [localRes, tmRes] = await Promise.all([
         q,
@@ -97,9 +97,9 @@ export default function Browse() {
       });
 
       // 🔎 TEMP: see exactly what gets passed into <EventCard>
-      if (import.meta.env.DEV) {
-        console.log("🔍 Applying filters:", applied);
-      }
+      // if (import.meta.env.DEV) {
+      //   console.log("🔍 Applying filters:", applied);
+      // }
 
       if (reset) {
         setEvents(merged);
@@ -172,6 +172,7 @@ export default function Browse() {
             events.map((ev) => (
               <EventCard
                 key={ev.id}
+                id={ev.id}
                 title={ev.title}
                 date={ev.date_time}
                 price={ev.price}

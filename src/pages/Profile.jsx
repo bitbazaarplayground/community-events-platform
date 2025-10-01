@@ -1,3 +1,4 @@
+// src/pages/profile.jsx
 import { useEffect, useState } from "react";
 import Container from "../components/Container.jsx";
 import { supabase } from "../supabaseClient.js";

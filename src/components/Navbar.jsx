@@ -45,11 +45,11 @@ export default function Navbar({ user, role, onLogout }) {
             {menuOpen && (
               <div className="absolute right-0 top-full mt-2 bg-white border rounded shadow-lg w-48 z-50">
                 <Link
-                  to="/profile"
+                  to="/dashboard"
                   className="block px-4 py-2 hover:bg-gray-100"
                   onClick={() => setMenuOpen(false)}
                 >
-                  My Profile
+                  Dashboard
                 </Link>
 
                 {/* Admin only: Post Event + My Events */}
@@ -127,12 +127,13 @@ export default function Navbar({ user, role, onLogout }) {
           {user ? (
             <>
               <Link
-                to="/profile"
+                to="/dashboard"
                 className="block px-4 py-2 hover:bg-gray-100"
                 onClick={() => setMenuOpen(false)}
               >
-                My Profile
+                Dashboard
               </Link>
+
               {role === "admin" && (
                 <>
                   <Link
