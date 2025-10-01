@@ -1,0 +1,30 @@
+/* Scope all tweaks to this page's carousel only */
+.discover-swiper .swiper {
+  /* give space for bullets so they don't overlap the card */
+  padding-bottom: 28px;
+}
+
+.discover-swiper .swiper-pagination {
+  bottom: 2px !important; /* push dots a bit lower */
+}
+
+.discover-swiper .swiper-pagination-bullet {
+  background: #a78bfa; /* purple-300 */
+  opacity: 0.45;
+}
+
+.discover-swiper .swiper-pagination-bullet-active {
+  background: #7c3aed; /* purple-600 */
+  opacity: 1;
+}
+
+.discover-swiper .swiper-button-prev,
+.discover-swiper .swiper-button-next {
+  color: #7c3aed; /* purple-600 */
+}
+
+.discover-swiper .swiper-button-prev::after,
+.discover-swiper .swiper-button-next::after {
+  font-size: 18px;
+  font-weight: 700;
+}

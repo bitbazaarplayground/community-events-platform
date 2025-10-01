@@ -30,9 +30,9 @@ export async function searchTicketmaster(filters = {}, page = 0) {
   const data = await res.json();
 
   // 🔎 Only log in dev (so it won’t spam Netlify/Vercel)
-  if (import.meta.env.DEV) {
-    console.log("Raw Ticketmaster events:", data._embedded?.events);
-  }
+  // if (import.meta.env.DEV) {
+  //   console.log("Raw Ticketmaster events:", data._embedded?.events);
+  // }
 
   const events = data._embedded?.events ?? [];
 
@@ -46,9 +46,9 @@ export async function searchTicketmaster(filters = {}, page = 0) {
 /** Normalize Ticketmaster’s event shape to your EventCard props */
 function normalizeTicketmaster(ev) {
   // 🔎 TEMP: log raw + normalized side by side
-  if (import.meta.env.DEV) {
-    console.log("Normalizing event:", ev);
-  }
+  // if (import.meta.env.DEV) {
+  //   console.log("Normalizing event:", ev);
+  // }
 
   const id = `tm_${ev.id}`;
   const title = ev.name || "Untitled";
@@ -97,12 +97,12 @@ function normalizeTicketmaster(ev) {
     external_organizer: ev.promoter?.name || "Ticketmaster",
   };
 
-  if (import.meta.env.DEV) {
-    console.groupCollapsed(`🎨 Normalizing TM event: ${ev.name || ev.id}`);
-    console.log("Raw event:", ev);
-    console.log("Normalized:", normalized);
-    console.groupEnd();
-  }
+  // if (import.meta.env.DEV) {
+  //   console.groupCollapsed(`🎨 Normalizing TM event: ${ev.name || ev.id}`);
+  //   console.log("Raw event:", ev);
+  //   console.log("Normalized:", normalized);
+  //   console.groupEnd();
+  // }
 
   return normalized;
 }
