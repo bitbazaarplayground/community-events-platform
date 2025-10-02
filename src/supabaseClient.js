@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       Accept: "application/json", // ✅ Fix for 406 error
+      "accept-profile": "authenticated",
     },
   },
 });
