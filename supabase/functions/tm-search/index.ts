@@ -19,11 +19,11 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   // query params
-  const q = url.searchParams.get("q") ?? ""; // keyword
-  const location = url.searchParams.get("location") ?? ""; // explicit city filter
-  const category = url.searchParams.get("category") ?? ""; // optional category filter
-  const countryCode = url.searchParams.get("countryCode") ?? "GB";
-  const page = url.searchParams.get("page") ?? "0";
+  const q = url.searchParams.get("q") || ""; // only pass keyword if explicitly provided
+  const location = url.searchParams.get("location") || ""; // city filter (optional)
+  const category = url.searchParams.get("category") || "";
+  const countryCode = url.searchParams.get("countryCode") || "GB";
+  const page = url.searchParams.get("page") || "0";
 
   const TM_KEY = Deno.env.get("TICKETMASTER_KEY");
   if (!TM_KEY) {
@@ -39,8 +39,15 @@ Deno.serve(async (req) => {
     });
 
     if (q) params.set("keyword", q);
-    if (location) params.set("city", location);
+
+    // Only add city if it looks like a valid city (not "UK")
+    if (location && location.toLowerCase() !== "uk") {
+      params.set("city", location);
+    }
+
     if (category) params.set("classificationName", category);
+    console.error("TM request:", `${TM_BASE}/events.json?${params.toString()}`);
+    console.log("TM request:", `${TM_BASE}/events.json?${params.toString()}`);
 
     const r = await fetch(`${TM_BASE}/events.json?${params.toString()}`);
     if (!r.ok) {
