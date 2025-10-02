@@ -13,8 +13,17 @@ import { supabase } from "../supabaseClient.js";
 
 import "../styles/swiper.css";
 
-const PLACEHOLDER = "img/concertCrowd.jpeg";
+// Use absolute path so Vite serves from /public
+const EVENT_PLACEHOLDER = "/img/concertCrowd.jpeg";
+
+// Handy formatter
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : "");
+
+// Build a friendly avatar if user has no avatar_url
+const avatarFromName = (nameOrEmail) =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    nameOrEmail || "User"
+  )}&background=6D28D9&color=fff&size=128&bold=true`;
 
 export default function UserDashboard() {
   const navigate = useNavigate();
@@ -29,7 +38,7 @@ export default function UserDashboard() {
   const [loadingBookings, setLoadingBookings] = useState(true);
 
   // ===== Saved Events (we’ll wire later) =====
-  const [savedEvents, setSavedEvents] = useState([]);
+  const [savedEvents] = useState([]);
 
   // ===== Discover carousel =====
   const [discoverEvents, setDiscoverEvents] = useState([]);
@@ -50,9 +59,11 @@ export default function UserDashboard() {
           .select("first_name,last_name,avatar_url,username")
           .eq("id", u.id)
           .maybeSingle();
+
         if (!active) return;
         setProfile(prof || null);
       }
+
       setLoadingUser(false);
     })();
     return () => {
@@ -78,6 +89,7 @@ export default function UserDashboard() {
         `
         )
         .eq("user_id", user.id);
+
       if (!active) return;
 
       if (error) {
@@ -106,7 +118,8 @@ export default function UserDashboard() {
             description: ev.description,
             image_url: ev.image_url,
             category: ev.categories?.name || null,
-            // local events
+
+            // local events only
             creatorId: null,
             seats_left: null,
             external_source: null,
@@ -212,12 +225,13 @@ export default function UserDashboard() {
     return (
       <div className="bg-white rounded-lg shadow hover:shadow-md transition overflow-hidden flex flex-col">
         <img
-          src={ev.image_url || PLACEHOLDER}
+          src={ev.image_url || EVENT_PLACEHOLDER}
           alt={ev.title}
           className="h-32 w-full object-cover"
+          referrerPolicy="no-referrer"
           onError={(e) => {
             e.currentTarget.onerror = null;
-            e.currentTarget.src = PLACEHOLDER;
+            e.currentTarget.src = EVENT_PLACEHOLDER;
           }}
         />
         <div className="p-3 flex-1 flex flex-col">
@@ -272,18 +286,21 @@ export default function UserDashboard() {
     );
   }
 
+  // Only show the first booked event here; “View all” opens the full list page
+  const previewBooked = bookedEvents.slice(0, 1);
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-10">
       {/* Profile Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <img
-            src={profile?.avatar_url || PLACEHOLDER}
+            src={profile?.avatar_url || avatarFromName(fullName)}
             alt={fullName}
             className="w-16 h-16 rounded-full object-cover"
             onError={(e) => {
               e.currentTarget.onerror = null;
-              e.currentTarget.src = PLACEHOLDER;
+              e.currentTarget.src = avatarFromName(fullName);
             }}
           />
           <div>
@@ -308,7 +325,7 @@ export default function UserDashboard() {
           rightCta={
             <button
               className="text-xs text-purple-600 hover:underline"
-              onClick={() => window.open("/me/events", "_blank")}
+              onClick={() => navigate("/me/events")}
             >
               View all
             </button>
@@ -316,20 +333,20 @@ export default function UserDashboard() {
         >
           {loadingBookings ? (
             <p className="text-gray-500 text-sm">Loading your bookings…</p>
-          ) : bookedEvents.length === 0 ? (
+          ) : previewBooked.length === 0 ? (
             <p className="text-gray-500 text-sm">
               You haven’t signed up for any events yet.
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-3">
-              {bookedEvents.map((ev) => (
+              {previewBooked.map((ev) => (
                 <BookedCard key={ev.id} ev={ev} />
               ))}
             </div>
           )}
         </Section>
 
-        {/* Saved Events (we’ll wire later to saved_events) */}
+        {/* Saved Events (to be wired to saved_events later) */}
         <Section
           title="Saved Events"
           rightCta={
@@ -341,20 +358,12 @@ export default function UserDashboard() {
             </button>
           }
         >
-          {savedEvents.length === 0 ? (
-            <p className="text-gray-500 text-sm">
-              You haven’t saved any events yet.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {savedEvents.map((ev) => (
-                <BookedCard key={ev.id} ev={ev} />
-              ))}
-            </div>
-          )}
+          <p className="text-gray-500 text-sm">
+            You haven’t saved any events yet.
+          </p>
         </Section>
 
-        {/* Past Events (optional): show after we add history filter if you like */}
+        {/* Past Events placeholder */}
         <Section title="Past Events">
           <p className="text-gray-500 text-sm">
             Past event history will appear here.
@@ -362,7 +371,7 @@ export default function UserDashboard() {
         </Section>
       </div>
 
-      {/* Discover carousel (kept simple; you already had this) */}
+      {/* Discover carousel */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Discover More Events</h2>
         {loadingDiscover ? (
@@ -410,13 +419,13 @@ export default function UserDashboard() {
                     aria-label={ev.title}
                   >
                     <img
-                      src={ev.image_url || PLACEHOLDER}
+                      src={ev.image_url || EVENT_PLACEHOLDER}
                       alt={ev.title}
                       loading="lazy"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
                         e.currentTarget.onerror = null;
-                        e.currentTarget.src = PLACEHOLDER;
+                        e.currentTarget.src = EVENT_PLACEHOLDER;
                       }}
                       className="h-44 w-full object-cover"
                     />

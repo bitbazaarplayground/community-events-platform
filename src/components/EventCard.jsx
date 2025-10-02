@@ -1,6 +1,6 @@
 // src/components/EventCard.jsx
 import { useEffect, useState } from "react";
-import { signUpForEvent } from "../lib/signups.js"; // ← make sure this file exists (we added it earlier)
+import { signUpForEvent } from "../lib/signups.js"; // RPC helper
 import { supabase } from "../supabaseClient.js";
 
 /**
@@ -10,7 +10,7 @@ import { supabase } from "../supabaseClient.js";
  */
 export default function EventCard({
   // Common fields
-  id, // ← required for local sign-up
+  id, // required for local sign-up
   title,
   date, // ISO string
   price,
@@ -44,8 +44,11 @@ export default function EventCard({
         .maybeSingle();
 
       if (!active) return;
-      if (error) console.error("Error fetching creator:", error.message);
-      else setCreator(data || null);
+      if (error) {
+        console.error("Error fetching creator:", error.message);
+      } else {
+        setCreator(data || null);
+      }
     };
     fetchCreator();
     return () => {
@@ -94,11 +97,11 @@ export default function EventCard({
       {/* Media */}
       <div className="relative">
         <img
-          src={image_url || "https://via.placeholder.com/400x250?text=Event"}
+          src={image_url || "https://via.placeholder.com/600x360?text=Event"}
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src =
-              "https://via.placeholder.com/400x250?text=Event";
+              "https://via.placeholder.com/600x360?text=Event";
           }}
           alt={title || "Event image"}
           className="h-48 w-full object-cover rounded-t-xl"
@@ -199,7 +202,11 @@ export default function EventCard({
                 : `Sign Up (${price})`}
             </button>
           )}
-          {msg && <p className="text-xs mt-2 text-gray-600">{msg}</p>}
+          {msg && (
+            <p className="text-xs mt-2 text-gray-600" aria-live="polite">
+              {msg}
+            </p>
+          )}
         </div>
       </div>
     </div>
