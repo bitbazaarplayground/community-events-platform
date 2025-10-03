@@ -1,16 +1,19 @@
-/* Scope all tweaks to this page's carousel only */
-.discover-swiper .swiper {
-  /* give space for bullets so they don't overlap the card */
-  padding-bottom: 28px;
+/* ===== Scoped to discover-swiper ===== */
+.discover-swiper {
+  position: relative;
+  padding-bottom: 40px; /* space for dots */
 }
 
+/* Pagination dots */
 .discover-swiper .swiper-pagination {
-  bottom: 2px !important; /* push dots a bit lower */
+  bottom: 0 !important;
+  text-align: center;
 }
 
 .discover-swiper .swiper-pagination-bullet {
   background: #a78bfa; /* purple-300 */
   opacity: 0.45;
+  transition: opacity 0.2s;
 }
 
 .discover-swiper .swiper-pagination-bullet-active {
@@ -18,17 +21,27 @@
   opacity: 1;
 }
 
-.discover-swiper .swiper-button-prev,
+/* Arrows */
+
+/* Move arrows outside the slides */
+.discover-swiper .swiper-button-prev {
+  left: -40px; /* pushes it left */
+}
 .discover-swiper .swiper-button-next {
-  color: #7c3aed; /* purple-600 */
+  right: -40px; /* pushes it right */
 }
 
+/* Bigger arrow icons */
 .discover-swiper .swiper-button-prev::after,
 .discover-swiper .swiper-button-next::after {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
 }
-/* .swiper-horizontal > .swiper-pagination-bullets,
-.swiper-pagination-horizontal.swiper-pagination-bullets {
-  margin-top: 15%;
-} */
+
+/* Hide arrows on mobile */
+@media (max-width: 768px) {
+  .discover-swiper .swiper-button-prev,
+  .discover-swiper .swiper-button-next {
+    display: none !important;
+  }
+}

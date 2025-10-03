@@ -1,5 +1,4 @@
-// supabase/functions/tm-search/index.ts
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+/// <reference types="https://deno.land/x/supabase@1.0.0/functions/runtime.d.ts" />
 
 const TM_BASE = "https://app.ticketmaster.com/discovery/v2";
 
@@ -11,16 +10,16 @@ function cors(res: Response) {
   return new Response(res.body, { status: res.status, headers: h });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return cors(new Response(null, { status: 204 }));
   }
 
   const url = new URL(req.url);
 
-  // query params
-  const q = url.searchParams.get("q") || ""; // only pass keyword if explicitly provided
-  const location = url.searchParams.get("location") || ""; // city filter (optional)
+  // Query params
+  const q = url.searchParams.get("q") || "";
+  const location = url.searchParams.get("location") || "";
   const category = url.searchParams.get("category") || "";
   const countryCode = url.searchParams.get("countryCode") || "GB";
   const page = url.searchParams.get("page") || "0";
@@ -46,14 +45,19 @@ Deno.serve(async (req) => {
     }
 
     if (category) params.set("classificationName", category);
-    console.error("TM request:", `${TM_BASE}/events.json?${params.toString()}`);
-    console.log("TM request:", `${TM_BASE}/events.json?${params.toString()}`);
 
-    const r = await fetch(`${TM_BASE}/events.json?${params.toString()}`);
+    const requestUrl = `${TM_BASE}/events.json?${params.toString()}`;
+    console.log("📡 TM request URL:", requestUrl);
+
+    const r = await fetch(requestUrl);
     if (!r.ok) {
-      return cors(new Response(await r.text(), { status: r.status }));
+      const text = await r.text();
+      console.error("❌ TM API error:", r.status, text);
+      return cors(new Response(text, { status: r.status }));
     }
+
     const data = await r.json();
+    console.log("✅ TM API response keys:", Object.keys(data));
 
     return cors(
       new Response(JSON.stringify(data), {
@@ -61,6 +65,7 @@ Deno.serve(async (req) => {
       })
     );
   } catch (e) {
+    console.error("💥 Proxy error:", e);
     return cors(new Response(`Proxy error: ${e}`, { status: 500 }));
   }
 });

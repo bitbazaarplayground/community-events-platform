@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
+import Footer from "./components/footer/Footer.jsx";
 import Auth from "./pages/Auth.jsx";
 import Browse from "./pages/Browse.jsx";
 import Home from "./pages/Home.jsx";
@@ -9,7 +10,12 @@ import MyEvents from "./pages/MyEvents.jsx";
 import PostEvent from "./pages/PostEvent.jsx";
 import Profile from "./pages/Profile.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
+import About from "./pages/footerPages/About.jsx";
+import Contact from "./pages/footerPages/Contact.jsx";
+import PrivacyPolicy from "./pages/footerPages/PrivacyPolicy.jsx";
+import TermsOfService from "./pages/footerPages/TermsOfService.jsx";
 import { supabase } from "./supabaseClient.js";
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -125,11 +131,15 @@ export default function App() {
             }
           />
           <Route path="/me/events" element={<MyBookingsPage />} />
-
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           {/* Fallback or 404 */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }
