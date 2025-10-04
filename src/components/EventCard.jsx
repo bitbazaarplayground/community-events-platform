@@ -1,38 +1,52 @@
 // src/components/EventCard.jsx
+import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { useEffect, useState } from "react";
-import { signUpForEvent } from "../lib/signups.js"; // RPC helper
+import { signUpForEvent } from "../lib/signups.js";
 import { supabase } from "../supabaseClient.js";
 
-/**
- * EventCard
- * - Local events (no external_source): shows "Sign Up" and calls RPC to create a signup.
- * - External (Ticketmaster): shows "Buy on Ticketmaster" linking to the external_url.
- */
+const FALLBACK_IMAGE = "https://placehold.co/600x360?text=Event";
+
 export default function EventCard({
-  // Common fields
-  id, // required for local sign-up
+  id,
   title,
-  date, // ISO string
+  date,
   price,
   location,
   description,
-  category, // string (e.g., categories.name)
+  category,
   seats_left,
   image_url,
-
-  // Local-only
-  creatorId, // events.created_by (UUID)
-
-  // External (Ticketmaster)
-  external_source, // "ticketmaster" | null
-  external_url, // external event link
-  external_organizer, // organizer name (if provided)
+  creatorId,
+  external_source,
+  external_url,
+  external_organizer,
 }) {
   const [creator, setCreator] = useState(null);
   const [signing, setSigning] = useState(false);
   const [msg, setMsg] = useState("");
+  const [saved, setSaved] = useState(false);
 
-  // Fetch creator only for local events
+  // === Load if already saved ===
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || !id) return;
+
+      const { data } = await supabase
+        .from("saved_events")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("event_id", id)
+        .maybeSingle();
+
+      setSaved(!!data);
+    })();
+  }, [id]);
+
+  // === Fetch creator (local only) ===
   useEffect(() => {
     let active = true;
     const fetchCreator = async () => {
@@ -44,11 +58,7 @@ export default function EventCard({
         .maybeSingle();
 
       if (!active) return;
-      if (error) {
-        console.error("Error fetching creator:", error.message);
-      } else {
-        setCreator(data || null);
-      }
+      if (!error) setCreator(data || null);
     };
     fetchCreator();
     return () => {
@@ -67,17 +77,18 @@ export default function EventCard({
       : creator?.email ?? "";
 
   const organizer = external_source
-    ? external_organizer ?? ""
+    ? external_organizer ?? "Ticketmaster"
     : localDisplayName;
 
+  // === Handle sign up (local events only) ===
   async function handleSignUp() {
     setMsg("");
-    if (!id) return; // safety
+    if (!id) return;
     setSigning(true);
     try {
-      const res = await signUpForEvent(id); // calls RPC sign_up_for_event
+      const res = await signUpForEvent(id);
       if (res.ok && res.reason === "signed") {
-        setMsg("✅ You’re signed up!");
+        setMsg("✅ Thank you for booking! Please check My Events.");
       } else if (res.ok && res.reason === "already_signed") {
         setMsg("ℹ️ You’re already signed up.");
       } else if (!res.ok && res.reason === "no_seats") {
@@ -92,34 +103,77 @@ export default function EventCard({
     }
   }
 
+  // === Handle save / unsave ===
+  async function handleToggleSave() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setMsg("⚠️ Please log in to save events.");
+      return;
+    }
+
+    if (saved) {
+      await supabase
+        .from("saved_events")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("event_id", id);
+      setSaved(false);
+    } else {
+      const insertData = {
+        user_id: user.id,
+        event_id: id,
+        source: external_source || "local",
+        title: title || "Untitled Event",
+        location: location || "",
+        image_url: image_url || FALLBACK_IMAGE,
+        external_url: external_url || null,
+      };
+
+      const { error } = await supabase.from("saved_events").insert(insertData);
+      if (error) {
+        console.error("Error saving event:", error.message);
+        setMsg("⚠️ Couldn’t save event.");
+      } else {
+        setSaved(true);
+      }
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col">
       {/* Media */}
       <div className="relative">
         <img
-          src={image_url || "https://via.placeholder.com/600x360?text=Event"}
+          src={image_url || FALLBACK_IMAGE}
           onError={(e) => {
             e.currentTarget.onerror = null;
-            e.currentTarget.src =
-              "https://via.placeholder.com/600x360?text=Event";
+            e.currentTarget.src = FALLBACK_IMAGE;
           }}
           alt={title || "Event image"}
           className="h-48 w-full object-cover rounded-t-xl"
         />
 
-        {/* Category tag */}
-        {category && (
+        {/* Category (local only) */}
+        {category && !external_source && (
           <span className="absolute top-3 left-3 px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 shadow">
             {category}
           </span>
         )}
 
-        {/* Free badge (local only) */}
-        {isFree && !external_source && (
-          <span className="absolute top-3 right-3 px-3 py-1 text-xs font-semibold rounded-full shadow bg-green-100 text-green-700">
-            Free
-          </span>
-        )}
+        {/* Heart */}
+        <button
+          onClick={handleToggleSave}
+          className="absolute top-3 right-3"
+          aria-label={saved ? "Remove from Saved Events" : "Save Event"}
+        >
+          {saved ? (
+            <HeartSolid className="h-6 w-6 text-red-500" />
+          ) : (
+            <HeartOutline className="h-6 w-6 text-red-500 hover:text-red-500" />
+          )}
+        </button>
       </div>
 
       {/* Content */}
@@ -140,8 +194,7 @@ export default function EventCard({
           </p>
         )}
 
-        {/* Seats info (local only) */}
-        {typeof seats_left === "number" && (
+        {typeof seats_left === "number" && !external_source && (
           <p className="text-sm mb-2">
             <span className="font-semibold">{seats_left}</span>{" "}
             {seats_left === 1 ? "seat" : "seats"} left
@@ -153,7 +206,6 @@ export default function EventCard({
           </p>
         )}
 
-        {/* Organizer */}
         {organizer && (
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
             {creator?.avatar_url && !external_source && (
@@ -161,9 +213,6 @@ export default function EventCard({
                 src={creator.avatar_url}
                 alt={organizer}
                 className="w-5 h-5 rounded-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
               />
             )}
             <span>
@@ -181,7 +230,6 @@ export default function EventCard({
               target="_blank"
               rel="noreferrer"
               className="inline-block w-full text-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition"
-              aria-label="Buy on Ticketmaster"
             >
               Buy on Ticketmaster
             </a>
@@ -191,7 +239,6 @@ export default function EventCard({
               onClick={handleSignUp}
               disabled={signing || seats_left === 0}
               className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
-              aria-label={isFree ? "Join Free" : `Sign Up (${price})`}
             >
               {seats_left === 0
                 ? "Sold out"

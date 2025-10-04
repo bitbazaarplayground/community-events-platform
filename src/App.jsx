@@ -7,8 +7,10 @@ import Browse from "./pages/Browse.jsx";
 import Home from "./pages/Home.jsx";
 import MyBookingsPage from "./pages/MyBookingsPage.jsx";
 import MyEvents from "./pages/MyEvents.jsx";
+import PastEvents from "./pages/PastEvents.jsx";
 import PostEvent from "./pages/PostEvent.jsx";
 import Profile from "./pages/Profile.jsx";
+import SavedEvents from "./pages/SavedEvents.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
 import About from "./pages/footerPages/About.jsx";
 import Contact from "./pages/footerPages/Contact.jsx";
@@ -100,6 +102,9 @@ export default function App() {
               )
             }
           />
+          <Route path="/me/saved" element={<SavedEvents />} />
+          <Route path="/me/past" element={<PastEvents />} />
+
           <Route
             path="/dashboard"
             element={user ? <UserDashboard user={user} /> : <Navigate to="/" />}
