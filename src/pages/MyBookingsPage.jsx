@@ -19,7 +19,7 @@ export default function MyBookingsPage() {
   const [err, setErr] = useState("");
 
   // upcoming | past
-  const [tab, setTab] = useState("upcoming");
+  // const [tab, setTab] = useState("upcoming");
 
   // Load session
   useEffect(() => {
@@ -148,7 +148,7 @@ export default function MyBookingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-4">
+      {/* <div className="flex gap-2 mb-4">
         <button
           className={`px-3 py-1 rounded-full border ${
             tab === "upcoming"
@@ -169,7 +169,7 @@ export default function MyBookingsPage() {
         >
           Past
         </button>
-      </div>
+      </div> */}
 
       {err && <p className="text-red-600 mb-3">{err}</p>}
 

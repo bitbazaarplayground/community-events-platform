@@ -6,7 +6,6 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
-
 import { searchTicketmaster } from "../lib/ticketmaster.js";
 import { supabase } from "../supabaseClient.js";
 
@@ -15,6 +14,7 @@ import "../styles/swiper.css";
 const IMG_MY_EVENTS = "/img/concertCrowd.jpeg";
 const IMG_SAVED_EVENTS = "/img/road.jpeg";
 const IMG_PAST_EVENTS = "/img/PastEvents.png";
+const EVENT_PLACEHOLDER = "https://via.placeholder.com/600x360?text=Event";
 
 // Format helper
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : "");
@@ -37,7 +37,64 @@ export default function UserDashboard() {
   const [discoverEvents, setDiscoverEvents] = useState([]);
   const [loadingDiscover, setLoadingDiscover] = useState(true);
 
-  // Load current user + profile
+  // ===== Saved Events =====
+  const [savedEvents, setSavedEvents] = useState([]);
+
+  // --- Load saved events (hybrid: local + ticketmaster)
+  useEffect(() => {
+    (async () => {
+      const { data: user } = await supabase.auth.getUser();
+      const userId = user?.user?.id;
+      if (!userId) return;
+
+      const { data, error } = await supabase
+        .from("saved_events")
+        .select("*")
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Error fetching saved_events:", error.message);
+        return;
+      }
+
+      // classify by id type
+      const isUuid = (str) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          str
+        );
+
+      const localIds = data.map((ev) => ev.event_id).filter((id) => isUuid(id));
+      const tmEvents = data.filter((ev) => !isUuid(ev.event_id));
+
+      let localEvents = [];
+      if (localIds.length > 0) {
+        const { data: rows, error: err2 } = await supabase
+          .from("events")
+          .select("*")
+          .in("id", localIds);
+
+        if (!err2) localEvents = rows || [];
+        else console.error("Error fetching local events:", err2.message);
+      }
+
+      // Merge both types
+      const merged = [
+        ...localEvents,
+        ...tmEvents.map((ev) => ({
+          id: ev.event_id,
+          title: ev.title,
+          location: ev.location,
+          image_url: ev.image_url,
+          external_url: ev.external_url,
+          external_source: "ticketmaster",
+        })),
+      ];
+
+      setSavedEvents(merged);
+    })();
+  }, []);
+
+  // --- Load current user + profile
   useEffect(() => {
     let active = true;
     (async () => {
@@ -64,14 +121,14 @@ export default function UserDashboard() {
     };
   }, []);
 
-  // Discover carousel (shuffle of local + Ticketmaster)
+  // --- Discover carousel (shuffle local + Ticketmaster)
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         setLoadingDiscover(true);
 
-        // Local (a few upcoming)
+        // Local upcoming events
         const { data: localRows } = await supabase
           .from("events")
           .select("id,title,date_time,location,image_url")
@@ -86,10 +143,10 @@ export default function UserDashboard() {
           location: ev.location,
           image_url: ev.image_url,
           external_url: null,
-          // source: "Local", //  tag
+          source: "Local",
         }));
 
-        // ===== 2. Pick random city for Ticketmaster =====
+        // Random Ticketmaster city
         const cities = [
           "London",
           "Manchester",
@@ -100,7 +157,7 @@ export default function UserDashboard() {
         ];
         const randomCity = cities[Math.floor(Math.random() * cities.length)];
 
-        // ===== 3. Fetch Ticketmaster events =====
+        // Fetch Ticketmaster events
         const tm = await searchTicketmaster({ location: randomCity }, 0);
 
         const external = (tm.events || []).slice(0, 12).map((ev) => ({
@@ -110,7 +167,7 @@ export default function UserDashboard() {
           location: ev.location,
           image_url: ev.image_url,
           external_url: ev.external_url || null,
-          // source: "Ticketmaster", // tag
+          source: "Ticketmaster",
         }));
 
         // Merge + shuffle
@@ -123,14 +180,13 @@ export default function UserDashboard() {
         if (!active) return;
         setDiscoverEvents(merged.slice(0, 12));
       } catch (e) {
-        // console.error("Discover load error:", e);
+        console.error("Discover load error:", e);
         if (!active) return;
         setDiscoverEvents([]);
       } finally {
         if (active) setLoadingDiscover(false);
       }
     })();
-
     return () => {
       active = false;
     };
@@ -145,7 +201,7 @@ export default function UserDashboard() {
     return fn || user?.email || "User";
   }, [profile, user]);
 
-  // SectionCard -> full image, no bottom gap
+  // UI components
   function SectionCard({ link, imgSrc, alt }) {
     return (
       <div
@@ -165,7 +221,6 @@ export default function UserDashboard() {
     );
   }
 
-  // Section -> title centered
   function Section({ title, children }) {
     return (
       <div className="mb-6">
@@ -223,7 +278,7 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* My Events + Saved Events + Past */}
+      {/* Sections */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Section title="My Events">
           <SectionCard
@@ -232,7 +287,6 @@ export default function UserDashboard() {
             alt="My Events"
           />
         </Section>
-
         <Section title="Saved Events">
           <SectionCard
             link="/me/saved"
@@ -240,7 +294,6 @@ export default function UserDashboard() {
             alt="Saved Events"
           />
         </Section>
-
         <Section title="Past Events">
           <SectionCard
             link="/me/past"
@@ -281,16 +334,7 @@ export default function UserDashboard() {
           >
             {discoverEvents.map((ev) => (
               <SwiperSlide key={ev.id}>
-                <div
-                  className="
-                    bg-white rounded-lg shadow transition
-                    hover:shadow-lg
-                    duration-200 ease-out
-                    will-change-transform
-                    hover:-translate-y-1 hover:scale-[1.02]
-                    overflow-hidden h-full flex flex-col
-                  "
-                >
+                <div className="bg-white rounded-lg shadow transition hover:shadow-lg duration-200 ease-out will-change-transform hover:-translate-y-1 hover:scale-[1.02] overflow-hidden h-full flex flex-col">
                   <a
                     href={ev.external_url || "#"}
                     target={ev.external_url ? "_blank" : "_self"}
@@ -316,7 +360,6 @@ export default function UserDashboard() {
                     {ev.location && (
                       <p className="text-xs text-gray-400">{ev.location}</p>
                     )}
-                    {/* ✅ source tag */}
                     <p className="text-xs italic text-purple-500 mt-1">
                       {ev.source}
                     </p>
