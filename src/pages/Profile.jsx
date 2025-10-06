@@ -4,74 +4,84 @@ import Container from "../components/Container.jsx";
 import { supabase } from "../supabaseClient.js";
 
 export default function Profile({ user }) {
-  // Profile state
+  // States
   const [loading, setLoading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingAuth, setSavingAuth] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // Identity from auth (email shown here comes from auth.users)
+  // Auth data
   const [currentEmail, setCurrentEmail] = useState(user?.email || "");
 
-  // Profile fields (public table)
+  // Profile data
+  const [profile, setProfile] = useState(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState(""); // private
-  const [address, setAddress] = useState(""); // private
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+
+  // Preferences
   const [allowEmail, setAllowEmail] = useState(true);
   const [allowSms, setAllowSms] = useState(false);
   const [allowPush, setAllowPush] = useState(true);
 
-  // Legacy fields you had
-  const [bio, setBio] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [imageFile, setImageFile] = useState(null);
-
-  // Auth changes
+  // Auth updates
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  // Fetch profile
+  // Fetch profile from DB
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!user?.id) return;
       setLoading(true);
-      setMsg && setMsg(""); // if you keep a message state
+      setMsg("");
 
-      const { data, error } = await supabase.rpc("get_my_profile");
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
       setLoading(false);
 
       if (error) {
         console.error("Error fetching profile:", error.message);
-        // setMsg?.("Failed to load profile."); // optional
+        setMsg("Failed to load profile.");
         return;
       }
 
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row) {
-        setCurrentEmail?.(user?.email || row.email || "");
-        setFirstName?.(row.first_name || "");
-        setLastName?.(row.last_name || "");
-        setPhone?.(row.phone || "");
-        setAddress?.(row.address || "");
-        setAllowEmail?.(row.allow_email ?? true);
-        setAllowSms?.(row.allow_sms ?? false);
-        setAllowPush?.(row.allow_push ?? true);
-        setBio?.(row.bio || "");
-        setAvatarUrl?.(row.avatar_url || "");
+      if (data) {
+        setProfile(data);
+        setFirstName(data.first_name || "");
+        setLastName(data.last_name || "");
+        setDisplayName(data.display_name || "");
+        setBio(data.bio || "");
+        setPhone(data.phone || "");
+        setAddress(data.address || "");
+        setAllowEmail(data.allow_email ?? true);
+        setAllowSms(data.allow_sms ?? false);
+        setAllowPush(data.allow_push ?? true);
+        setAvatarUrl(data.avatar_url || "");
+        setCurrentEmail(data.email || user.email || "");
       }
     };
 
-    if (user?.id) fetchProfile();
+    fetchProfile();
   }, [user]);
 
-  // Save avatar (if any) and profile fields
+  // Save avatar + profile fields
   const handleSaveProfile = async () => {
+    if (!profile) return;
     setMsg("");
     setSavingProfile(true);
 
     let newAvatarUrl = avatarUrl;
 
-    // Avatar upload
+    // Upload avatar if new
     if (imageFile) {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `avatar_${user.id}_${Date.now()}.${fileExt}`;
@@ -92,22 +102,30 @@ export default function Profile({ user }) {
       newAvatarUrl = pub.publicUrl;
     }
 
-    // Persist to user_profiles
+    // Prepare update payload
+    const updates = {
+      first_name: firstName || null,
+      last_name: lastName || null,
+      phone: phone || null,
+      address: address || null,
+      allow_email: allowEmail,
+      allow_sms: allowSms,
+      allow_push: allowPush,
+      bio: bio || null,
+      avatar_url: newAvatarUrl || null,
+      email: currentEmail || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Admin-only field
+    if (profile?.role === "admin") {
+      updates.display_name = displayName || null;
+    }
+
+    // Save to Supabase
     const { error: updateErr } = await supabase
       .from("user_profiles")
-      .update({
-        first_name: firstName || null,
-        last_name: lastName || null,
-        phone: phone || null,
-        address: address || null,
-        allow_email: allowEmail,
-        allow_sms: allowSms,
-        allow_push: allowPush,
-        bio: bio || null,
-        avatar_url: newAvatarUrl || null,
-        email: currentEmail || null, // keep email in profile for your EventCard display
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq("id", user.id);
 
     setSavingProfile(false);
@@ -117,35 +135,34 @@ export default function Profile({ user }) {
       setMsg("Failed to save profile.");
     } else {
       setAvatarUrl(newAvatarUrl);
-      setMsg("Profile saved.");
+      setMsg("✅ Profile saved successfully.");
     }
   };
 
-  // Change auth email & password (Supabase Auth)
+  // Handle Auth updates (email / password)
   const handleSaveAuth = async () => {
     setMsg("");
     setSavingAuth(true);
 
     try {
-      // Update email (if provided)
+      // Update email
       if (newEmail && newEmail !== currentEmail) {
-        const { data, error } = await supabase.auth.updateUser({
-          email: newEmail,
-        });
+        const { error } = await supabase.auth.updateUser({ email: newEmail });
         if (error) throw error;
 
-        // Also mirror into user_profiles.email so your EventCard "By {email}" keeps working
-        const { error: emailMirrorErr } = await supabase
+        await supabase
           .from("user_profiles")
-          .update({ email: newEmail, updated_at: new Date().toISOString() })
+          .update({
+            email: newEmail,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", user.id);
-        if (emailMirrorErr) throw emailMirrorErr;
 
         setCurrentEmail(newEmail);
         setNewEmail("");
       }
 
-      // Update password (if provided)
+      // Update password
       if (newPassword) {
         const { error } = await supabase.auth.updateUser({
           password: newPassword,
@@ -155,7 +172,7 @@ export default function Profile({ user }) {
       }
 
       setMsg(
-        "Account settings updated. If you changed your email, please verify it via the confirmation link."
+        "✅ Account updated. If you changed your email, please verify it via the confirmation link."
       );
     } catch (e) {
       console.error("Auth update error:", e.message);
@@ -165,6 +182,7 @@ export default function Profile({ user }) {
     }
   };
 
+  // Render
   return (
     <Container>
       <div className="py-8">
@@ -181,10 +199,11 @@ export default function Profile({ user }) {
               </div>
             )}
 
-            {/* Avatar + Basic Info */}
+            {/* Profile details */}
             <section className="space-y-6">
               <h3 className="text-lg font-semibold">Profile Details</h3>
 
+              {/* Avatar */}
               <div className="flex items-center gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
@@ -206,6 +225,7 @@ export default function Profile({ user }) {
                 )}
               </div>
 
+              {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block mb-1 font-medium">First name</label>
@@ -217,6 +237,7 @@ export default function Profile({ user }) {
                     placeholder="Jane"
                   />
                 </div>
+
                 <div>
                   <label className="block mb-1 font-medium">Last name</label>
                   <input
@@ -227,6 +248,28 @@ export default function Profile({ user }) {
                     placeholder="Doe"
                   />
                 </div>
+
+                {/* Admin-only display name */}
+                {profile?.role === "admin" && (
+                  <div className="md:col-span-2">
+                    <label className="block mb-1 font-medium">
+                      Display / Business Name
+                    </label>
+                    <input
+                      type="text"
+                      value={displayName || ""}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="e.g. Nico’s Music Events or Green Park Tours"
+                      className="w-full border px-3 py-2 rounded focus:outline-none focus:ring"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This name will appear publicly as your organizer name on
+                      events.
+                    </p>
+                  </div>
+                )}
+
+                {/* Bio */}
                 <div className="md:col-span-2">
                   <label className="block mb-1 font-medium">Bio</label>
                   <textarea
@@ -240,7 +283,7 @@ export default function Profile({ user }) {
               </div>
             </section>
 
-            {/* Private Contact & Address */}
+            {/* Contact & Address */}
             <section className="space-y-4">
               <h3 className="text-lg font-semibold">Contact & Address</h3>
               <p className="text-sm text-gray-500">
@@ -274,7 +317,7 @@ export default function Profile({ user }) {
               </div>
             </section>
 
-            {/* Communication Preferences */}
+            {/* Preferences */}
             <section className="space-y-3">
               <h3 className="text-lg font-semibold">
                 Communication Preferences

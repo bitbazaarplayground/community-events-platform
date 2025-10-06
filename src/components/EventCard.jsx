@@ -1,7 +1,9 @@
-// src/components/EventCard.jsx
+import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { useEffect, useState } from "react";
+import { FaCalendar } from "react-icons/fa";
+import { buildGoogleCalendarUrl } from "../lib/calendar.js";
 import { signUpForEvent } from "../lib/signups.js";
 import { supabase } from "../supabaseClient.js";
 
@@ -46,41 +48,62 @@ export default function EventCard({
     })();
   }, [id]);
 
-  // === Fetch creator (local only) ===
+  // === Fetch creator (for local events only) ===
   useEffect(() => {
     let active = true;
+
     const fetchCreator = async () => {
-      if (!creatorId) return;
+      if (!creatorId || external_source === "ticketmaster") return;
+
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("first_name, last_name, email, avatar_url")
+        .select("first_name, last_name, email, avatar_url, role, display_name")
         .eq("id", creatorId)
         .maybeSingle();
 
-      if (!active) return;
-      if (!error) setCreator(data || null);
+      if (error) {
+        console.error("❌ Error fetching creator:", error.message);
+        return;
+      }
+
+      if (active) {
+        // console.log("✅ Found creator:", data);
+        setCreator(data);
+      }
     };
+
     fetchCreator();
     return () => {
       active = false;
     };
-  }, [creatorId]);
+  }, [creatorId, external_source]);
 
   const isFree =
     price == null ||
     String(price).trim() === "" ||
     String(price).toLowerCase() === "free";
 
-  const localDisplayName =
-    creator?.first_name || creator?.last_name
-      ? `${creator?.first_name ?? ""} ${creator?.last_name ?? ""}`.trim()
-      : creator?.email ?? "";
+  // === Mask email for privacy ===
+  function maskEmail(email = "") {
+    const [name, domain] = email.split("@");
+    if (!name || !domain) return "User";
+    const maskedName =
+      name.length > 2
+        ? `${name[0]}${"*".repeat(name.length - 2)}${name.slice(-1)}`
+        : name;
+    return `${maskedName}@${domain}`;
+  }
 
+  // === Organizer display logic ===
   const organizer = external_source
     ? external_organizer ?? "Ticketmaster"
-    : localDisplayName;
+    : creator?.display_name
+    ? creator.display_name
+    : creator?.first_name && creator?.last_name
+    ? `${creator.first_name} ${creator.last_name}`
+    : maskEmail(creator?.email);
 
-  // === Handle sign up (local events only) ===
+  // === Handle sign up ===
   async function handleSignUp() {
     setMsg("");
     if (!id) return;
@@ -141,9 +164,67 @@ export default function EventCard({
     }
   }
 
+  // === Tooltip for Ticketmaster ===
+  function TicketmasterButtonWithTooltip({
+    title,
+    date,
+    location,
+    external_url,
+  }) {
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [hideTimer, setHideTimer] = useState(null);
+
+    const handleMouseEnter = () => {
+      if (hideTimer) clearTimeout(hideTimer);
+      setShowTooltip(true);
+    };
+
+    const handleMouseLeave = () => {
+      const timer = setTimeout(() => setShowTooltip(false), 2000);
+      setHideTimer(timer);
+    };
+
+    return (
+      <div
+        className="relative flex justify-center"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <a
+          href={external_url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-block w-full text-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition relative z-10"
+        >
+          Buy on Ticketmaster
+        </a>
+
+        {showTooltip && date && (
+          <a
+            href={buildGoogleCalendarUrl({
+              title: title || "Event",
+              startISO: date,
+              endISO: new Date(
+                new Date(date).getTime() + 60 * 60 * 1000
+              ).toISOString(),
+              details: external_url || "",
+              location: location || "",
+            })}
+            target="_blank"
+            rel="noreferrer"
+            className="absolute bottom-full mb-2 px-3 py-1 text-xs bg-white border border-blue-200 rounded-md text-blue-600 shadow-md opacity-100 transform translate-y-0 transition-all duration-700 ease-out hover:bg-blue-50 flex items-center justify-center gap-1.5"
+          >
+            <FaCalendar className="w-3.5 h-3.5" />
+            Add to Google Calendar
+          </a>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col">
-      {/* Media */}
+      {/* Image */}
       <div className="relative">
         <img
           src={image_url || FALLBACK_IMAGE}
@@ -155,14 +236,14 @@ export default function EventCard({
           className="h-48 w-full object-cover rounded-t-xl"
         />
 
-        {/* Category (local only) */}
+        {/* Category */}
         {category && !external_source && (
           <span className="absolute top-3 left-3 px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 shadow">
             {category}
           </span>
         )}
 
-        {/* Heart */}
+        {/* Save */}
         <button
           onClick={handleToggleSave}
           className="absolute top-3 right-3"
@@ -176,24 +257,22 @@ export default function EventCard({
         </button>
       </div>
 
-      {/* Content */}
+      {/* Body */}
       <div className="p-5 flex flex-col flex-1">
         <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1">
           {title}
         </h3>
-
-        <p className="text-sm text-gray-600 mb-1">
-          {date ? new Date(date).toLocaleString() : ""}
-        </p>
-
+        {date && (
+          <p className="text-sm text-gray-600 mb-1">
+            {new Date(date).toLocaleString()}
+          </p>
+        )}
         {location && <p className="text-sm text-gray-600 mb-3">{location}</p>}
-
         {description && (
           <p className="text-sm text-gray-700 line-clamp-2 mb-3">
             {description}
           </p>
         )}
-
         {typeof seats_left === "number" && !external_source && (
           <p className="text-sm mb-2">
             <span className="font-semibold">{seats_left}</span>{" "}
@@ -205,34 +284,64 @@ export default function EventCard({
             )}
           </p>
         )}
-
-        {organizer && (
+        {/* Organizer info */}
+        {(creator || external_source) && (
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+            {/* Avatar for local events */}
             {creator?.avatar_url && !external_source && (
               <img
                 src={creator.avatar_url}
-                alt={organizer}
+                alt={
+                  creator?.display_name || creator?.first_name || "Organizer"
+                }
                 className="w-5 h-5 rounded-full object-cover"
               />
             )}
-            <span>
+
+            <span className="flex items-center gap-1">
               Organized by{" "}
-              <span className="font-semibold text-purple-600">{organizer}</span>
+              {external_source === "ticketmaster" ? (
+                <span className="font-semibold text-purple-600 flex items-center gap-1">
+                  {external_organizer?.trim()
+                    ? external_organizer
+                    : "Ticketmaster Official"}
+                </span>
+              ) : creator ? (
+                <span className="font-semibold text-purple-600 flex items-center gap-1">
+                  {/* Display name > full name > masked email */}
+                  {creator.display_name?.trim()
+                    ? creator.display_name
+                    : creator.first_name && creator.last_name
+                    ? `${creator.first_name} ${creator.last_name}`
+                    : creator.email
+                    ? maskEmail(creator.email)
+                    : "Unknown Organizer"}
+
+                  {creator.role === "admin" && (
+                    <CheckCircleIcon
+                      className="w-3.5 h-3.5 text-green-500"
+                      title="Verified Organizer"
+                    />
+                  )}
+                </span>
+              ) : (
+                <span className="font-semibold text-purple-600">
+                  Unknown Organizer
+                </span>
+              )}
             </span>
           </div>
         )}
 
-        {/* CTA */}
+        {/* Buttons */}
         <div className="mt-auto">
           {external_source === "ticketmaster" && external_url ? (
-            <a
-              href={external_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-block w-full text-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition"
-            >
-              Buy on Ticketmaster
-            </a>
+            <TicketmasterButtonWithTooltip
+              title={title}
+              date={date}
+              location={location}
+              external_url={external_url}
+            />
           ) : (
             <button
               type="button"
@@ -249,6 +358,7 @@ export default function EventCard({
                 : `Sign Up (${price})`}
             </button>
           )}
+
           {msg && (
             <p className="text-xs mt-2 text-gray-600" aria-live="polite">
               {msg}
