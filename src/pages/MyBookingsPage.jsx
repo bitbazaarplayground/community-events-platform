@@ -19,7 +19,7 @@ export default function MyBookingsPage() {
   const [err, setErr] = useState("");
 
   // upcoming | past
-  // const [tab, setTab] = useState("upcoming");
+  const [tab, setTab] = useState("upcoming");
 
   // Load session
   useEffect(() => {

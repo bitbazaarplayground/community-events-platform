@@ -43,7 +43,13 @@ function normalizeTicketmaster(ev) {
     category,
     external_source: "ticketmaster",
     external_url: ev.url || null,
-    external_organizer: ev.promoter?.name || "Ticketmaster",
+    external_organizer:
+      ev.promoter?.name ||
+      (Array.isArray(ev.promoters) && ev.promoters.length
+        ? ev.promoters[0]?.name
+        : null) ||
+      ev._embedded?.attractions?.[0]?.name ||
+      "Ticketmaster Official",
   };
 }
 

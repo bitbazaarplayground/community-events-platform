@@ -89,17 +89,44 @@ export default function Browse() {
 
       const external = tmRes.events || [];
 
-      // Merge + sort
-      const merged = [...external, ...local].sort((a, b) => {
+      // Merge and remove duplicates by id
+
+      // Merge
+      const combined = [...external, ...local];
+
+      // Deduplicate by title (ignore variations) when NOT searching
+      let merged;
+      if (!applied.event) {
+        const seenTitles = new Set();
+        merged = combined.filter((ev) => {
+          const title = ev.title?.trim().toLowerCase();
+          if (seenTitles.has(title)) return false;
+          seenTitles.add(title);
+          return true;
+        });
+      } else {
+        // Show all events if searching
+        merged = combined;
+      }
+
+      // Sort by date (ascending)
+      merged.sort((a, b) => {
         const da = a.date_time ? new Date(a.date_time).getTime() : 0;
         const db = b.date_time ? new Date(b.date_time).getTime() : 0;
         return da - db;
       });
 
-      // 🔎 TEMP: see exactly what gets passed into <EventCard>
-      // if (import.meta.env.DEV) {
-      //   console.log("🔍 Applying filters:", applied);
-      // }
+      // 🪄 Prefer local DB events over Ticketmaster for duplicates
+      if (!applied.event) {
+        const seen = new Map();
+        merged.forEach((ev) => {
+          const key = ev.title?.trim().toLowerCase();
+          if (!seen.has(key) || ev.external_source === null) {
+            seen.set(key, ev);
+          }
+        });
+        merged = Array.from(seen.values());
+      }
 
       if (reset) {
         setEvents(merged);
