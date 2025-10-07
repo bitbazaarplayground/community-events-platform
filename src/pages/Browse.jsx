@@ -8,13 +8,13 @@ import { supabase } from "../supabaseClient.js";
 // 🔑 Mapping between local categories and Ticketmaster's categories
 const CATEGORY_MAP = {
   Music: "Music",
-  Nightlife: "Music", // TM doesn’t have “Nightlife”, closest = Music
+  Nightlife: "Music",
   "Performing & Visual Arts": "Arts & Theatre",
   "Food & Drinks": "Food",
   Hobbies: "Miscellaneous",
   Business: "Miscellaneous",
   Sports: "Sports",
-  Other: "", // fallback → don’t send a filter
+  Other: "",
 };
 
 export default function Browse() {
@@ -35,7 +35,7 @@ export default function Browse() {
     const to = from + PAGE_SIZE - 1;
 
     try {
-      // 1) Local Supabase
+      // === 1️⃣ Local events from Supabase ===
       let q = supabase
         .from("events")
         .select("*, categories(name)")
@@ -46,28 +46,9 @@ export default function Browse() {
       if (applied.location) q = q.ilike("location", `%${applied.location}%`);
       if (applied.category) q = q.eq("category_id", applied.category);
 
-      // 🔑 Map local category → Ticketmaster segment
-      const tmCategory =
-        CATEGORY_MAP[applied.categoryLabel] ?? applied.categoryLabel ?? "";
-      // console.log("Category mapping:", {
-      //   userSelected: applied.categoryLabel,
-      //   mappedForTicketmaster: tmCategory,
-      // });
-
-      const [localRes, tmRes] = await Promise.all([
-        q,
-        searchTicketmaster(
-          {
-            q: applied.event || "",
-            location: applied.location || "",
-            category: tmCategory, // ✅ aligned category
-          },
-          reset ? 0 : tmPage
-        ),
-      ]);
-
+      const localRes = await q;
       if (localRes.error) {
-        console.error("Supabase error:", localRes.error.message);
+        console.error("❌ Supabase error:", localRes.error.message);
       }
 
       const localData = localRes.data || [];
@@ -87,53 +68,115 @@ export default function Browse() {
         external_organizer: null,
       }));
 
-      const external = tmRes.events || [];
+      // === 2️⃣ Ticketmaster events ===
+      const tmCategory =
+        CATEGORY_MAP[applied.categoryLabel] ?? applied.categoryLabel ?? "";
+      const tmRes = await searchTicketmaster(
+        {
+          q: applied.event || "",
+          location: applied.location || "",
+          category: tmCategory,
+        },
+        reset ? 0 : tmPage
+      );
 
-      // Merge and remove duplicates by id
+      let ticketmaster = tmRes.events || [];
 
-      // Merge
-      const combined = [...external, ...local];
+      // === 3️Remove duplicate Ticketmaster events ===
 
-      // Deduplicate by title (ignore variations) when NOT searching
-      let merged;
-      if (!applied.event) {
-        const seenTitles = new Set();
-        merged = combined.filter((ev) => {
-          const title = ev.title?.trim().toLowerCase();
-          if (seenTitles.has(title)) return false;
-          seenTitles.add(title);
-          return true;
-        });
-      } else {
-        // Show all events if searching
-        merged = combined;
+      const isSearching = Boolean(applied.event && applied.event.trim());
+      const normalizeText = (str = "") =>
+        str
+          .toLowerCase()
+          .trim()
+          // remove day/time words in titles
+          .replace(/\b(mon|tue|wed|thu|fri|sat|sun)(day)?\b/gi, "")
+          .replace(/\b\d{1,2}:\d{2}\b/g, "")
+          .replace(/&\s*\d{1,2}(:\d{2})?/g, "")
+          // strip other fluff
+          .replace(/[^\w\s]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+      if (!isSearching) {
+        const grouped = {};
+
+        for (const ev of ticketmaster) {
+          const title = normalizeText(ev.title);
+          const venue =
+            normalizeText(
+              ev.location?.split(",")[0] ||
+                ev._embedded?.venues?.[0]?.name ||
+                ev._embedded?.venues?.[0]?.city?.name ||
+                ""
+            ) || "unknown";
+
+          const key = `${title}::${venue}`;
+          const date = new Date(ev.date_time);
+
+          // Keep the earliest upcoming event for this base title+venue
+          if (!grouped[key] || date < new Date(grouped[key].date_time)) {
+            grouped[key] = ev;
+          }
+        }
+
+        ticketmaster = Object.values(grouped);
       }
 
-      // Sort by date (ascending)
-      merged.sort((a, b) => {
+      console.log(
+        "🎭 After dedupe:",
+        ticketmaster.map((e) => ({
+          title: e.title,
+          venue: e.location,
+          date: e.date_time,
+        }))
+      );
+
+      // === 4️⃣ Merge local + Ticketmaster ===
+      let combined = [...local, ...ticketmaster];
+
+      // Randomize the entire list only when browsing (not searching)
+      if (!isSearching) {
+        combined = combined.sort(() => Math.random() - 0.5);
+      }
+
+      // === 5️⃣ Randomly interleave local + Ticketmaster events ===
+      const localEvents = combined.filter((e) => !e.external_source);
+      const tmEvents = combined.filter(
+        (e) => e.external_source === "ticketmaster"
+      );
+
+      const interleaved = [];
+      while (localEvents.length || tmEvents.length) {
+        // Randomly pick between local/TM (prefer alternating)
+        const useLocal =
+          Math.random() < 0.5
+            ? localEvents.length > 0
+            : tmEvents.length === 0
+            ? true
+            : false;
+
+        if (useLocal && localEvents.length) {
+          interleaved.push(localEvents.pop());
+        } else if (tmEvents.length) {
+          interleaved.push(tmEvents.pop());
+        }
+      }
+
+      // === 6️⃣ Sort by upcoming date ===
+      const sorted = interleaved.sort((a, b) => {
         const da = a.date_time ? new Date(a.date_time).getTime() : 0;
         const db = b.date_time ? new Date(b.date_time).getTime() : 0;
         return da - db;
       });
 
-      // 🪄 Prefer local DB events over Ticketmaster for duplicates
-      if (!applied.event) {
-        const seen = new Map();
-        merged.forEach((ev) => {
-          const key = ev.title?.trim().toLowerCase();
-          if (!seen.has(key) || ev.external_source === null) {
-            seen.set(key, ev);
-          }
-        });
-        merged = Array.from(seen.values());
-      }
-
+      // === 7️⃣ Save results ===
       if (reset) {
-        setEvents(merged);
+        setEvents(sorted);
         setPage(1);
         setTmPage(tmRes.nextPage || 0);
       } else {
-        setEvents((prev) => [...prev, ...merged]);
+        setEvents((prev) => [...prev, ...sorted]);
         setPage((prev) => prev + 1);
         setTmPage(tmRes.nextPage || tmPage);
       }
@@ -198,7 +241,7 @@ export default function Browse() {
           ) : (
             events.map((ev) => (
               <EventCard
-                key={ev.id}
+                key={`${ev.external_source || "local"}-${ev.id}`}
                 id={ev.id}
                 title={ev.title}
                 date={ev.date_time}
