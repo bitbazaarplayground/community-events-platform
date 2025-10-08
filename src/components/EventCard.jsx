@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { FaCalendar } from "react-icons/fa";
 import { buildGoogleCalendarUrl } from "../lib/calendar.js";
 import { signUpForEvent } from "../lib/signups.js";
+import "../styles/EventCard.css";
 import { supabase } from "../supabaseClient.js";
 
 const FALLBACK_IMAGE = "https://placehold.co/600x360?text=Event";
@@ -223,7 +224,7 @@ export default function EventCard({
   }
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col">
+    <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col h-full justify-between">
       {/* Image */}
       <div className="relative">
         <img
@@ -267,6 +268,15 @@ export default function EventCard({
             {new Date(date).toLocaleString()}
           </p>
         )}
+        {/* Show "+X more dates" with fade animation */}
+        {external_source === "ticketmaster" &&
+          typeof extraCount === "number" &&
+          extraCount > 0 && (
+            <p className="text-sm text-purple-600 font-semibold mb-2 animate-fade-in">
+              +{extraCount} more date{extraCount > 1 ? "s" : ""} available
+            </p>
+          )}
+
         {location && <p className="text-sm text-gray-600 mb-3">{location}</p>}
         {description && (
           <p className="text-sm text-gray-700 line-clamp-2 mb-3">

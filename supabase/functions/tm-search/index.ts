@@ -25,7 +25,7 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const q = url.searchParams.get("q") || "";
   const location = url.searchParams.get("location") || "";
-  const category = url.searchParams.get("category") || "";
+  const segmentId = url.searchParams.get("segmentId") || "";
   const countryCode = url.searchParams.get("countryCode") || "GB";
   const page = url.searchParams.get("page") || "0";
 
@@ -36,7 +36,13 @@ Deno.serve(async (req: Request) => {
   }
 
   // === Cache Key ===
-  const cacheKey = JSON.stringify({ q, location, category, countryCode, page });
+  const cacheKey = JSON.stringify({
+    q,
+    location,
+    segmentId,
+    countryCode,
+    page,
+  });
   const now = Date.now();
 
   // Serve from cache if fresh
@@ -61,11 +67,10 @@ Deno.serve(async (req: Request) => {
 
   if (q) params.set("keyword", q);
   if (location && location.toLowerCase() !== "uk") params.set("city", location);
-  if (category) params.set("classificationName", category);
+  if (segmentId) params.set("segmentId", segmentId);
 
   // Add date range (today → +30 days)
   function formatTMDate(date: Date) {
-    // Format to strict Ticketmaster format: 2025-10-07T00:00:00Z
     return date.toISOString().split(".")[0] + "Z";
   }
 

@@ -91,12 +91,10 @@ export default function FancySearchBar({
   useEffect(() => {
     const handler = setTimeout(() => {
       if (variant === "home") {
-        // fire only after user interacted AND query non-empty
         if (inputTouchedRef.current && inputValue.trim().length > 0) {
           onSearch?.(inputValue.trim());
         }
       } else {
-        // browse: fire only after user interacted with any filter
         if (filtersTouchedRef.current) {
           const selected = categories.find((c) => c.id === categoryQuery);
           onSearch?.({
@@ -107,19 +105,10 @@ export default function FancySearchBar({
           });
         }
       }
-    }, 700); //delay
+    }, 700);
 
     return () => clearTimeout(handler);
-  }, [
-    inputValue,
-    eventQuery,
-    locationQuery,
-    categoryQuery,
-    variant,
-    onSearch,
-    categories,
-    categoryQuery,
-  ]);
+  }, [eventQuery, locationQuery, categoryQuery]);
 
   // ----- Instant search on Enter -----
   const handleKeyDown = (e) => {
@@ -128,13 +117,15 @@ export default function FancySearchBar({
 
     if (variant === "home") {
       const q = inputValue.trim();
-      if (q.length === 0) return; // ignore empty enter
+      if (q.length === 0) return;
       onSearch?.(q);
     } else {
+      const selected = categories.find((c) => c.id === categoryQuery);
       onSearch?.({
         event: eventQuery,
         location: locationQuery,
         category: categoryQuery,
+        categoryLabel: selected?.name || "",
       });
     }
   };
@@ -151,7 +142,6 @@ export default function FancySearchBar({
         setCategories(data || []);
       }
     };
-    // fetch for both variants (cheap) so the component is self-sufficient
     fetchCategories();
   }, []);
 
@@ -186,7 +176,7 @@ export default function FancySearchBar({
             placeholder="Search Location"
             value={locationQuery}
             onChange={(e) => {
-              filtersTouchedRef.current = true; // ✅ user interacted
+              filtersTouchedRef.current = true;
               setLocationQuery(e.target.value);
             }}
             onKeyDown={handleKeyDown}
@@ -200,7 +190,7 @@ export default function FancySearchBar({
           <select
             value={categoryQuery}
             onChange={(e) => {
-              filtersTouchedRef.current = true; // ✅ user interacted
+              filtersTouchedRef.current = true;
               const selected = categories.find((c) => c.id === e.target.value);
               setCategoryQuery(e.target.value);
 
