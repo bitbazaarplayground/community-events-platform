@@ -24,11 +24,24 @@ export default function EventCard({
   external_source,
   external_url,
   external_organizer,
+  extraCount,
+  extraDates, //TM
+  extra_dates, //db
 }) {
   const [creator, setCreator] = useState(null);
   const [signing, setSigning] = useState(false);
   const [msg, setMsg] = useState("");
   const [saved, setSaved] = useState(false);
+  // Safety net
+  extraDates = extraDates || [];
+  // Extra dates
+  const [showDates, setShowDates] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  const toggleDates = () => {
+    setShowDates((prev) => !prev);
+    if (!hasInteracted) setHasInteracted(true); // permanently stop pulse after first click
+  };
 
   // === Load if already saved ===
   useEffect(() => {
@@ -268,14 +281,127 @@ export default function EventCard({
             {new Date(date).toLocaleString()}
           </p>
         )}
-        {/* Show "+X more dates" with fade animation */}
-        {external_source === "ticketmaster" &&
+        {/* Unified "+X more dates" for both Ticketmaster and local events */}
+        {((external_source === "ticketmaster" && extraCount > 0) ||
+          (Array.isArray(extra_dates) && extra_dates.length > 0)) && (
+          <div className="mb-2">
+            <button
+              type="button"
+              onClick={toggleDates}
+              title="Click to view more dates"
+              className={`text-sm font-semibold hover:underline transition flex items-center gap-1 ${
+                showDates || hasInteracted ? "text-purple-600" : "pulse-text"
+              }`}
+            >
+              {showDates ? (
+                <>
+                  Hide additional dates <span className="text-xs">▲</span>
+                </>
+              ) : (
+                <>
+                  +
+                  {external_source === "ticketmaster"
+                    ? extraCount
+                    : extra_dates.length}{" "}
+                  more date
+                  {(external_source === "ticketmaster"
+                    ? extraCount
+                    : extra_dates.length) > 1
+                    ? "s"
+                    : ""}{" "}
+                  available <span className="text-xs">▼</span>
+                </>
+              )}
+            </button>
+
+            {showDates && (
+              <ul className="mt-2 text-sm text-gray-700 space-y-1 animate-fade-in">
+                {(external_source === "ticketmaster"
+                  ? extraDates
+                  : extra_dates
+                )?.map((d, idx) => (
+                  <li key={idx} className="ml-2">
+                    <a
+                      href={external_url || "#"}
+                      target={external_url ? "_blank" : "_self"}
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline transition"
+                    >
+                      <span role="img" aria-label="calendar">
+                        📅
+                      </span>
+                      <span>
+                        {new Date(d).toLocaleDateString()}{" "}
+                        {new Date(d).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Show "+X more dates" */}
+        {/* {external_source === "ticketmaster" &&
           typeof extraCount === "number" &&
           extraCount > 0 && (
-            <p className="text-sm text-purple-600 font-semibold mb-2 animate-fade-in">
-              +{extraCount} more date{extraCount > 1 ? "s" : ""} available
-            </p>
-          )}
+            <div className="mb-2">
+              <button
+                type="button"
+                onClick={toggleDates}
+                title="Click to view more dates"
+                className="text-sm text-purple-600 font-semibold hover:underline transition flex items-center gap-1"
+              >
+                {showDates ? (
+                  <>
+                    Hide additional dates{" "}
+                    <span
+                      className={`text-xs arrow-rotate ${
+                        showDates ? "open" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    +{extraCount} more date{extraCount > 1 ? "s" : ""} available{" "}
+                    <span className="text-xs">▼</span>
+                  </>
+                )}
+              </button>
+
+              {showDates && (
+                <ul className="mt-2 text-sm text-gray-700 space-y-1 animate-fade-in">
+                  {extraDates?.map((d, idx) => (
+                    <li key={idx} className="ml-2">
+                      <a
+                        href={external_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline transition"
+                      >
+                        <span role="img" aria-label="calendar">
+                          📅
+                        </span>
+                        <span>
+                          {new Date(d).toLocaleDateString()}{" "}
+                          {new Date(d).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )} */}
 
         {location && <p className="text-sm text-gray-600 mb-3">{location}</p>}
         {description && (

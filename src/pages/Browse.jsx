@@ -8,14 +8,14 @@ import {
 } from "../lib/ticketmaster.js";
 import { supabase } from "../supabaseClient.js";
 
-// 🗂 Map between your site’s categories and Ticketmaster segments
+// Map between site’s categories and Ticketmaster segments
 const TM_SEGMENT_MAP = {
-  Music: "KZFzniwnSyZfZ7v7nJ", // Music
-  "Arts & Theatre": "KZFzniwnSyZfZ7v7na", // Arts & Theatre
-  Sports: "KZFzniwnSyZfZ7v7nE", // Sports
-  "Film & Cinema": "KZFzniwnSyZfZ7v7nn", // Film
-  "Family & Kids": "KZFzniwnSyZfZ7v7n1", // Family
-  "Festivals & Lifestyle": "KZFzniwnSyZfZ7v7nn", // Misc/Festivals
+  Music: "KZFzniwnSyZfZ7v7nJ",
+  "Arts & Theatre": "KZFzniwnSyZfZ7v7na",
+  Sports: "KZFzniwnSyZfZ7v7nE",
+  "Film & Cinema": "KZFzniwnSyZfZ7v7nn",
+  "Family & Kids": "KZFzniwnSyZfZ7v7n1",
+  "Festivals & Lifestyle": "KZFzniwnSyZfZ7v7nn",
   Other: "",
 };
 
@@ -37,6 +37,20 @@ export default function Browse() {
   const fetchEvents = async (newFilters = {}, reset = false) => {
     if (loading) return;
     setLoading(true);
+    // Clear any old prefetched data if filters changed
+    const cachedNext = localStorage.getItem("nextTmPage");
+    if (cachedNext) {
+      try {
+        const { filters: cachedFilters } = JSON.parse(cachedNext);
+        // compare old cached filters to current ones
+        if (JSON.stringify(cachedFilters) !== JSON.stringify(newFilters)) {
+          console.log("🧹 Clearing outdated prefetched data (filters changed)");
+          localStorage.removeItem("nextTmPage");
+        }
+      } catch {
+        localStorage.removeItem("nextTmPage");
+      }
+    }
 
     const applied = reset ? newFilters : filters;
 
@@ -61,7 +75,9 @@ export default function Browse() {
       // === 1️⃣ Local events from Supabase ===
       let q = supabase
         .from("events")
-        .select("*, categories(name)")
+        .select(
+          "id, title, description, location, date_time, price, seats_left, created_by, image_url, extra_dates, categories(name)"
+        )
         .order("date_time", { ascending: true })
         .range(from, to);
 
@@ -70,6 +86,8 @@ export default function Browse() {
       if (applied.category) q = q.eq("category_id", applied.category);
 
       const localRes = await q;
+      console.log("🧭 Local events fetched:", localRes.data);
+
       if (localRes.error) {
         console.error("❌ Supabase error:", localRes.error.message);
       }
@@ -89,6 +107,7 @@ export default function Browse() {
         external_source: null,
         external_url: null,
         external_organizer: null,
+        extra_dates: row.extra_dates || [],
       }));
 
       // === 2️⃣ Ticketmaster events ===
@@ -161,10 +180,11 @@ export default function Browse() {
           }
         }
 
-        // Add total count for UI display (“+X more dates available”)
+        // +X more dates available
         ticketmaster = Object.values(grouped).map((ev) => ({
           ...ev,
           extraCount: ev.extraDates.length,
+          extraDates: ev.extraDates,
         }));
       }
 
@@ -203,13 +223,6 @@ export default function Browse() {
         }
       }
 
-      // ✅ Log how many events were fetched
-      console.info(
-        `✅ Loaded ${local.length} local + ${
-          ticketmaster.length
-        } TM events (combined: ${local.length + ticketmaster.length})`
-      );
-
       // === 7️⃣ Save results ===
       if (reset) {
         setEvents(interleaved);
@@ -220,7 +233,7 @@ export default function Browse() {
         setPage((prev) => prev + 1);
         setTmPage(tmRes.nextPage || tmPage);
       }
-      // ✅ Only update pagination flags when not currently loading new results
+
       setHasMoreLocal((prev) =>
         reset
           ? localData.length === PAGE_SIZE
@@ -228,11 +241,27 @@ export default function Browse() {
       );
 
       setTmHasMore((prev) => (reset ? tmRes.hasMore : prev || tmRes.hasMore));
-      console.info(
-        `✅ Loaded ${local.length} local + ${
-          ticketmaster.length
-        } TM events (combined: ${local.length + ticketmaster.length})`
-      );
+
+      // 🔮 Prefetch next Ticketmaster page (background)
+      if (reset && tmRes.hasMore) {
+        console.log("⏳ Preloading next Ticketmaster page...");
+        searchTicketmaster(applied, tmRes.nextPage)
+          .then((preload) => {
+            if (preload?.events?.length) {
+              localStorage.setItem(
+                "nextTmPage",
+                JSON.stringify({
+                  filters: applied,
+                  data: preload,
+                })
+              );
+              console.log(
+                `✅ Prefetched ${preload.events.length} events for next page`
+              );
+            }
+          })
+          .catch((err) => console.warn("⚠️ Prefetch failed:", err));
+      }
     } catch (err) {
       console.error("fetchEvents failed:", err);
     } finally {
@@ -318,6 +347,9 @@ export default function Browse() {
                     external_source={ev.external_source}
                     external_url={ev.external_url}
                     external_organizer={ev.external_organizer}
+                    extraCount={ev.extraCount}
+                    extraDates={ev.extraDates}
+                    extra_dates={ev.extra_dates}
                   />
                 </motion.div>
               ))
@@ -329,7 +361,32 @@ export default function Browse() {
           <div className="flex justify-center mt-12">
             <button
               onClick={() => {
-                if (!loading) fetchEvents(filters);
+                if (loading) return;
+
+                // Try using prefetched Ticketmaster page first
+                const cachedNext = localStorage.getItem("nextTmPage");
+                if (cachedNext) {
+                  try {
+                    const { filters: cachedFilters, data } =
+                      JSON.parse(cachedNext);
+                    if (
+                      JSON.stringify(cachedFilters) === JSON.stringify(filters)
+                    ) {
+                      console.log("🚀 Using prefetched Ticketmaster page");
+                      setEvents((prev) => [...prev, ...data.events]);
+                      setTmPage(data.nextPage || tmPage);
+                      setTmHasMore(data.hasMore);
+                      localStorage.removeItem("nextTmPage");
+                      return;
+                    }
+                  } catch (err) {
+                    console.warn("⚠️ Failed to use prefetched data:", err);
+                    localStorage.removeItem("nextTmPage");
+                  }
+                }
+
+                // Fallback
+                fetchEvents(filters);
               }}
               disabled={loading}
               className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition flex items-center gap-2 disabled:opacity-70"
