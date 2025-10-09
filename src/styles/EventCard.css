@@ -1,14 +1,57 @@
-.eventcard-fade-in {
-  animation: eventcard-fade-in 0.4s ease-out forwards;
-}
-
-@keyframes eventcard-fade-in {
+/* === Fade-in for extra dates list === */
+@keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(3px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* === Arrow rotation for dropdown indicator === */
+.arrow-rotate {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+.arrow-rotate.open {
+  transform: rotate(180deg);
+}
+
+/* === Gentle pulse animation (twice every 10s) === */
+.pulse-text {
+  color: #7e22ce;
+  animation: pulseFade 5s ease-in-out infinite;
+}
+
+/* Pulses twice in 10 seconds — 2 "breaths" per cycle */
+@keyframes pulseFade {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  10% {
+    opacity: 0.6;
+    transform: scale(1.04);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 0.6;
+    transform: scale(1.03);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
