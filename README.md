@@ -20,3 +20,22 @@ If you are developing a production application, we recommend using TypeScript wi
 ### Recommended VS Code Extensions
 
 - [Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss) — for class name autocompletion, error hints, and improved dev experience.
+
+## 🧪 Testing
+
+This project includes unit and integration tests using **Jest** and **React Testing Library**.
+
+### What’s Covered
+
+- ✅ Supabase data fetching and error handling (mocked responses)
+- ✅ Ticketmaster API integration and merged event display
+- ✅ Component rendering (Home page, EventCard)
+- ✅ Authentication checks via mocked `supabase.auth.getUser`
+
+### Running Tests
+
+To run all tests in watch mode:
+
+```bash
+npm run test
+```
