@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
+import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
 import Auth from "./pages/Auth.jsx";
 import Browse from "./pages/Browse.jsx";
@@ -17,11 +18,13 @@ import About from "./pages/footerPages/About.jsx";
 import Contact from "./pages/footerPages/Contact.jsx";
 import PrivacyPolicy from "./pages/footerPages/PrivacyPolicy.jsx";
 import TermsOfService from "./pages/footerPages/TermsOfService.jsx";
+
 import { supabase } from "./supabaseClient.js";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
     const fetchUserAndRole = async () => {
@@ -32,36 +35,106 @@ export default function App() {
       setUser(currentUser);
 
       if (currentUser) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from("user_profiles")
           .select("role")
           .eq("id", currentUser.id)
           .maybeSingle();
-        if (profileError) {
-          console.warn(
-            "Could not read role (defaulting to 'user'):",
-            profileError.message
-          );
-          setUserRole("user");
-        } else {
-          setUserRole(profile?.role ?? "user");
-        }
+        setUserRole(profile?.role ?? "user");
       } else {
         setUserRole(null);
       }
     };
 
+    // initial load
     fetchUserAndRole();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      const newUser = session?.user ?? null;
-      setUser(newUser);
-      if (newUser) fetchUserAndRole();
-      else setUserRole(null);
-    });
+    // 🔥 Listen for new sign-ins (including after email confirmation)
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" && session?.user) {
+          const user = session.user;
+          setUser(user);
+
+          const savedCode = localStorage.getItem("pendingAdminCode") || "";
+          const role =
+            savedCode.toUpperCase() === "ADMIN123" ? "admin" : "user";
+
+          // check profile
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (!profile) {
+            await supabase
+              .from("user_profiles")
+              .insert([{ id: user.id, email: user.email, role }]);
+            console.log(`✅ Created ${user.email} with role ${role}`);
+          }
+
+          localStorage.removeItem("pendingAdminCode");
+
+          setToast(
+            role === "admin"
+              ? "🎉 Welcome! Your admin account is now active."
+              : "Welcome back!"
+          );
+
+          await fetchUserAndRole();
+
+          // fetch updated role
+          await fetchUserAndRole();
+        } else if (event === "SIGNED_OUT") {
+          setUser(null);
+          setUserRole(null);
+        }
+      }
+    );
 
     return () => listener?.subscription?.unsubscribe();
   }, []);
+
+  // useEffect(() => {
+  //   const fetchUserAndRole = async () => {
+  //     const {
+  //       data: { session },
+  //     } = await supabase.auth.getSession();
+  //     const currentUser = session?.user ?? null;
+  //     setUser(currentUser);
+
+  //     if (currentUser) {
+  //       const { data: profile, error: profileError } = await supabase
+  //         .from("user_profiles")
+  //         .select("role")
+  //         .eq("id", currentUser.id)
+  //         .maybeSingle();
+  //       if (profileError) {
+  //         console.warn(
+  //           "Could not read role (defaulting to 'user'):",
+  //           profileError.message
+  //         );
+  //         setUserRole("user");
+  //       } else {
+  //         setUserRole(profile?.role ?? "user");
+  //       }
+  //     } else {
+  //       setUserRole(null);
+  //     }
+  //   };
+
+  //   fetchUserAndRole();
+
+  //   const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
+  //     const newUser = session?.user ?? null;
+  //     setUser(newUser);
+  //     if (newUser) fetchUserAndRole();
+  //     else setUserRole(null);
+  //   });
+
+  //   return () => listener?.subscription?.unsubscribe();
+  // }, []);
 
   const handleLogout = async () => {
     try {
@@ -75,6 +148,7 @@ export default function App() {
 
   return (
     <div>
+      <ToastMessage message={toast} onClose={() => setToast("")} />
       <Navbar user={user} role={userRole} onLogout={handleLogout} />
       <main className="p-4">
         <Routes>
