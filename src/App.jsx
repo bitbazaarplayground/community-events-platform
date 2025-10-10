@@ -10,6 +10,7 @@ import MyEvents from "./pages/MyEvents.jsx";
 import PastEvents from "./pages/PastEvents.jsx";
 import PostEvent from "./pages/PostEvent.jsx";
 import Profile from "./pages/Profile.jsx";
+import Recovery from "./pages/Recovery.jsx";
 import SavedEvents from "./pages/SavedEvents.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
 import About from "./pages/footerPages/About.jsx";
@@ -135,6 +136,7 @@ export default function App() {
               )
             }
           />
+          <Route path="recovery" element={<Recovery />} />
           <Route path="/me/events" element={<MyBookingsPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
