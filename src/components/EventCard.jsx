@@ -1,3 +1,4 @@
+// src/components/EventCard.jsx
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
@@ -15,6 +16,7 @@ export default function EventCard({
   title,
   date,
   price,
+  is_paid,
   location,
   description,
   category,
@@ -92,10 +94,7 @@ export default function EventCard({
     };
   }, [creatorId, external_source]);
 
-  const isFree =
-    price == null ||
-    String(price).trim() === "" ||
-    String(price).toLowerCase() === "free";
+  const isFree = !is_paid || Number(price) === 0;
 
   // === Mask email for privacy ===
   function maskEmail(email = "") {
@@ -345,64 +344,6 @@ export default function EventCard({
           </div>
         )}
 
-        {/* Show "+X more dates" */}
-        {/* {external_source === "ticketmaster" &&
-          typeof extraCount === "number" &&
-          extraCount > 0 && (
-            <div className="mb-2">
-              <button
-                type="button"
-                onClick={toggleDates}
-                title="Click to view more dates"
-                className="text-sm text-purple-600 font-semibold hover:underline transition flex items-center gap-1"
-              >
-                {showDates ? (
-                  <>
-                    Hide additional dates{" "}
-                    <span
-                      className={`text-xs arrow-rotate ${
-                        showDates ? "open" : ""
-                      }`}
-                    >
-                      ▼
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    +{extraCount} more date{extraCount > 1 ? "s" : ""} available{" "}
-                    <span className="text-xs">▼</span>
-                  </>
-                )}
-              </button>
-
-              {showDates && (
-                <ul className="mt-2 text-sm text-gray-700 space-y-1 animate-fade-in">
-                  {extraDates?.map((d, idx) => (
-                    <li key={idx} className="ml-2">
-                      <a
-                        href={external_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline transition"
-                      >
-                        <span role="img" aria-label="calendar">
-                          📅
-                        </span>
-                        <span>
-                          {new Date(d).toLocaleDateString()}{" "}
-                          {new Date(d).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )} */}
-
         {location && <p className="text-sm text-gray-600 mb-3">{location}</p>}
         {description && (
           <p className="text-sm text-gray-700 line-clamp-2 mb-3">
@@ -479,9 +420,44 @@ export default function EventCard({
               external_url={external_url}
             />
           ) : (
+            // Replace inside your EventCard component, where the button handles paid events
             <button
               type="button"
-              onClick={handleSignUp}
+              onClick={async () => {
+                setMsg("");
+                if (is_paid && price > 0) {
+                  try {
+                    setMsg("💳 Redirecting to payment...");
+                    const response = await fetch(
+                      "/.netlify/functions/create-checkout-session",
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          eventId: id,
+                          title,
+                          price,
+                        }),
+                      }
+                    );
+
+                    const data = await response.json();
+
+                    if (data.url) {
+                      window.location.href = data.url; // redirect to Stripe
+                    } else {
+                      setMsg("⚠️ Payment failed to initialize.");
+                      console.error("Stripe Error:", data);
+                    }
+                  } catch (err) {
+                    console.error("Payment error:", err.message);
+                    setMsg("⚠️ Payment error. Please try again later.");
+                  }
+                } else {
+                  // Normal sign-up for free events
+                  await handleSignUp();
+                }
+              }}
               disabled={signing || seats_left === 0}
               className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
@@ -489,9 +465,9 @@ export default function EventCard({
                 ? "Sold out"
                 : signing
                 ? "Signing you up…"
-                : isFree
+                : !is_paid || price === 0
                 ? "Join Free"
-                : `Sign Up (${price})`}
+                : `Buy Ticket (£${price})`}
             </button>
           )}
 
