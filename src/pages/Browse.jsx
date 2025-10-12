@@ -98,6 +98,7 @@ export default function Browse() {
         title: row.title,
         date_time: row.date_time,
         price: row.price,
+        is_paid: row.is_paid,
         location: row.location,
         description: row.description,
         image_url: row.image_url,
@@ -338,6 +339,7 @@ export default function Browse() {
                     title={ev.title}
                     date={ev.date_time}
                     price={ev.price}
+                    is_paid={ev.is_paid}
                     location={ev.location}
                     description={ev.description}
                     category={ev.category}

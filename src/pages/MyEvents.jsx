@@ -101,6 +101,7 @@ export default function MyEvents() {
               title={ev.title}
               date={ev.date_time}
               price={ev.price}
+              is_paid={ev.is_paid}
               location={ev.location}
               description={ev.description}
               category={ev.categories?.name}

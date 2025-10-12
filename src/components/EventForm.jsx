@@ -9,7 +9,9 @@ export default function EventForm({ user, onEventCreated }) {
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("12:30");
+  const [isPaid, setIsPaid] = useState(false); // 🆕 toggle for paid/free
   const [price, setPrice] = useState("");
+
   const [seats, setSeats] = useState("");
 
   // Image handling
@@ -30,11 +32,8 @@ export default function EventForm({ user, onEventCreated }) {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name");
-      if (error) {
-        console.error("Error fetching categories:", error.message);
-      } else {
-        setCategories(data || []);
-      }
+      if (error) console.error("Error fetching categories:", error.message);
+      else setCategories(data || []);
     };
     fetchCategories();
   }, []);
@@ -55,6 +54,8 @@ export default function EventForm({ user, onEventCreated }) {
     if (!categoryId) return "Category is required.";
     if (!seats || isNaN(seats) || parseInt(seats) <= 0)
       return "Seats must be a positive number.";
+    if (isPaid && (!price || isNaN(price) || parseFloat(price) <= 0))
+      return "Price must be a positive number for paid events.";
     return null;
   };
 
@@ -72,6 +73,7 @@ export default function EventForm({ user, onEventCreated }) {
     const dateTime = `${date}T${time}:00`;
     let image_url = null;
 
+    // Upload image (same as before)
     if (imageFile) {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
@@ -92,7 +94,8 @@ export default function EventForm({ user, onEventCreated }) {
       image_url = remoteImageUrl;
     }
 
-    const finalPrice = price.trim() || "Free";
+    // Prepare event data
+    const finalPrice = isPaid ? parseFloat(price) || 0 : 0;
 
     const payload = {
       title,
@@ -100,13 +103,12 @@ export default function EventForm({ user, onEventCreated }) {
       location,
       date_time: dateTime,
       price: finalPrice,
+      is_paid: isPaid,
       seats: parseInt(seats),
       seats_left: parseInt(seats),
       created_by: user.id,
       image_url,
       category_id: categoryId,
-
-      // External fields remain null for internal events
       external_source: null,
       external_id: null,
       external_url: null,
@@ -129,6 +131,7 @@ export default function EventForm({ user, onEventCreated }) {
       setTime("12:30");
       setPrice("");
       setSeats("");
+      setIsPaid(false);
       setImageFile(null);
       setRemoteImageUrl("");
       setCategoryId("");
@@ -200,14 +203,45 @@ export default function EventForm({ user, onEventCreated }) {
         ))}
       </select>
 
-      {/* Price (blank = Free) */}
-      <input
-        type="text"
-        placeholder="Price (leave blank for Free)"
-        className="w-full border px-4 py-2 rounded"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-      />
+      {/* 🆕 Paid / Free toggle */}
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={is_paid}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setIsPaid(checked);
+              if (!checked) setPrice(""); // reset price when switching to free
+            }}
+          />
+          <span className="text-sm">This is a paid event</span>
+        </label>
+      </div>
+
+      {/* 🆕 Price input only if paid */}
+      {is_paid && (
+        <input
+          type="number"
+          placeholder="Enter ticket price (£)"
+          className="w-full border px-4 py-2 rounded"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+        />
+      )}
+
+      {/* Show price input only if paid */}
+      {/* {isPaid && (
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Enter price (£)"
+          className="w-full border px-4 py-2 rounded"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+        />
+      )} */}
 
       {/* Seats */}
       <input
@@ -218,7 +252,7 @@ export default function EventForm({ user, onEventCreated }) {
         onChange={(e) => setSeats(e.target.value)}
       />
 
-      {/* Image picker + optional remote URL */}
+      {/* Image upload & preview (unchanged) */}
       <div className="grid sm:grid-cols-2 gap-4 items-start">
         <div>
           <label className="block text-sm font-medium mb-1">Upload Image</label>
@@ -253,7 +287,6 @@ export default function EventForm({ user, onEventCreated }) {
         </div>
       </div>
 
-      {/* Preview */}
       {imagePreview && (
         <div className="mt-2">
           <img

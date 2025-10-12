@@ -19,6 +19,8 @@ import Contact from "./pages/footerPages/Contact.jsx";
 import PrivacyPolicy from "./pages/footerPages/PrivacyPolicy.jsx";
 import TermsOfService from "./pages/footerPages/TermsOfService.jsx";
 
+import Cancel from "./pages/Cancel.jsx";
+import Success from "./pages/Success.jsx";
 import { supabase } from "./supabaseClient.js";
 
 export default function App() {
@@ -96,46 +98,6 @@ export default function App() {
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
-  // useEffect(() => {
-  //   const fetchUserAndRole = async () => {
-  //     const {
-  //       data: { session },
-  //     } = await supabase.auth.getSession();
-  //     const currentUser = session?.user ?? null;
-  //     setUser(currentUser);
-
-  //     if (currentUser) {
-  //       const { data: profile, error: profileError } = await supabase
-  //         .from("user_profiles")
-  //         .select("role")
-  //         .eq("id", currentUser.id)
-  //         .maybeSingle();
-  //       if (profileError) {
-  //         console.warn(
-  //           "Could not read role (defaulting to 'user'):",
-  //           profileError.message
-  //         );
-  //         setUserRole("user");
-  //       } else {
-  //         setUserRole(profile?.role ?? "user");
-  //       }
-  //     } else {
-  //       setUserRole(null);
-  //     }
-  //   };
-
-  //   fetchUserAndRole();
-
-  //   const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-  //     const newUser = session?.user ?? null;
-  //     setUser(newUser);
-  //     if (newUser) fetchUserAndRole();
-  //     else setUserRole(null);
-  //   });
-
-  //   return () => listener?.subscription?.unsubscribe();
-  // }, []);
-
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -199,6 +161,9 @@ export default function App() {
   path="/profile/edit"
   element={user ? <Profile user={user} /> : <Navigate to="/" />}
 /> */}
+          {/* Payments */}
+          <Route path="/success" element={<Success />} />
+          <Route path="/cancel" element={<Cancel />} />
 
           <Route
             path="/myevents"
