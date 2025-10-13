@@ -21,8 +21,9 @@ export default function Home() {
     let sb = supabase
       .from("events")
       .select(
-        "id, title, description, location, date_time, price, seats_left, created_by, image_url, extra_dates, categories(name)"
+        "id, title, description, location, date_time, price, is_paid, seats_left, created_by, image_url, category_id, categories(name)"
       )
+
       .order("date_time", { ascending: true })
       .limit(TEASER_SIZE);
 
@@ -43,6 +44,7 @@ export default function Home() {
       title: row.title,
       date_time: row.date_time,
       price: row.price,
+      is_paid: row.is_paid,
       location: row.location,
       description: row.description,
       image_url: row.image_url,
@@ -117,6 +119,7 @@ export default function Home() {
                   title={event.title}
                   date={event.date_time}
                   price={event.price}
+                  is_paid={event.is_paid}
                   location={event.location}
                   description={event.description}
                   category={event.category || event.categories?.name}

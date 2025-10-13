@@ -2,10 +2,24 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { useEffect, useRef } from "react";
+
 export default function Navbar({ user, role, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
+
+  // 🧩 Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <header className="flex justify-between items-center py-4 px-6 bg-white shadow-sm font-inter">
@@ -33,7 +47,7 @@ export default function Navbar({ user, role, onLogout }) {
         </Link>
 
         {user ? (
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               onClick={toggleMenu}
               className="text-gray-700 hover:text-purple-600 transition"
