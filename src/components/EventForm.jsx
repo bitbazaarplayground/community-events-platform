@@ -208,7 +208,7 @@ export default function EventForm({ user, onEventCreated }) {
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            checked={is_paid}
+            checked={isPaid}
             onChange={(e) => {
               const checked = e.target.checked;
               setIsPaid(checked);
@@ -220,7 +220,7 @@ export default function EventForm({ user, onEventCreated }) {
       </div>
 
       {/* 🆕 Price input only if paid */}
-      {is_paid && (
+      {isPaid && (
         <input
           type="number"
           placeholder="Enter ticket price (£)"
