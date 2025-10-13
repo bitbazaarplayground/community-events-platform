@@ -40,17 +40,16 @@ export default function MyEvents() {
       let data, error;
 
       if (userRole === "admin") {
-        // 🔹 Admin → events created by them
         ({ data, error } = await supabase
           .from("events")
-          .select("*")
+          .select("*, categories(name)")
           .eq("created_by", u.id)
           .order("date_time", { ascending: true }));
       } else {
         // 🔹 User → events they signed up for
         ({ data, error } = await supabase
           .from("signups")
-          .select("event_id, events(*)")
+          .select("event_id, events(*, categories(name))") // include categories + is_paid
           .eq("user_id", u.id)
           .order("events.date_time", { ascending: true }));
 
