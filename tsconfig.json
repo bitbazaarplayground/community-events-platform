@@ -14,6 +14,6 @@
     "outDir": "dist", // ⬅️ NEW: put compiled files here
     "noEmit": true // ⬅️ NEW: don’t actually write files (since Vite handles build)
   },
-  "include": ["src", "babel.config.cjs"],
+  "include": ["src", "babel.config.cjs", "netlify/functions/**/*.js"],
   "exclude": ["node_modules", "supabase/functions", "src/setupTests.js"]
 }

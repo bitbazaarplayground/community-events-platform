@@ -94,7 +94,7 @@ export default function EventCard({
     };
   }, [creatorId, external_source]);
 
-  const isFree = !is_paid || Number(price) === 0;
+  // const isFree = is_paid === false || Number(price) === 0;
 
   // === Mask email for privacy ===
   function maskEmail(email = "") {
@@ -420,7 +420,6 @@ export default function EventCard({
               external_url={external_url}
             />
           ) : (
-            // Replace inside your EventCard component, where the button handles paid events
             <button
               type="button"
               onClick={async () => {
@@ -433,28 +432,20 @@ export default function EventCard({
                       {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          eventId: id,
-                          title,
-                          price,
-                        }),
+                        body: JSON.stringify({ eventId: id, title, price }),
                       }
                     );
 
                     const data = await response.json();
-
                     if (data.url) {
-                      window.location.href = data.url; // redirect to Stripe
+                      window.location.href = data.url;
                     } else {
                       setMsg("⚠️ Payment failed to initialize.");
-                      console.error("Stripe Error:", data);
                     }
                   } catch (err) {
-                    console.error("Payment error:", err.message);
                     setMsg("⚠️ Payment error. Please try again later.");
                   }
                 } else {
-                  // Normal sign-up for free events
                   await handleSignUp();
                 }
               }}
@@ -465,9 +456,9 @@ export default function EventCard({
                 ? "Sold out"
                 : signing
                 ? "Signing you up…"
-                : !is_paid || price === 0
-                ? "Join Free"
-                : `Buy Ticket (£${price})`}
+                : is_paid && price > 0
+                ? `Buy Ticket (£${price})`
+                : "Join Free"}
             </button>
           )}
 

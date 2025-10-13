@@ -75,7 +75,9 @@ export default function Browse() {
       // === 1️⃣ Local events from Supabase ===
       let q = supabase
         .from("events")
-        .select("*, categories(name)")
+        .select(
+          "id, title, description, location, date_time, price, is_paid, seats_left, created_by, image_url, category_id, categories(name)"
+        )
 
         .order("date_time", { ascending: true })
         .range(from, to);

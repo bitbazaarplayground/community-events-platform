@@ -3,8 +3,11 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
+
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Auth from "./pages/Auth.jsx";
 import Browse from "./pages/Browse.jsx";
+import Cancel from "./pages/Cancel.jsx";
 import Home from "./pages/Home.jsx";
 import MyBookingsPage from "./pages/MyBookingsPage.jsx";
 import MyEvents from "./pages/MyEvents.jsx";
@@ -13,20 +16,19 @@ import PostEvent from "./pages/PostEvent.jsx";
 import Profile from "./pages/Profile.jsx";
 import Recovery from "./pages/Recovery.jsx";
 import SavedEvents from "./pages/SavedEvents.jsx";
+import Success from "./pages/Success.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
 import About from "./pages/footerPages/About.jsx";
 import Contact from "./pages/footerPages/Contact.jsx";
 import PrivacyPolicy from "./pages/footerPages/PrivacyPolicy.jsx";
 import TermsOfService from "./pages/footerPages/TermsOfService.jsx";
-
-import Cancel from "./pages/Cancel.jsx";
-import Success from "./pages/Success.jsx";
 import { supabase } from "./supabaseClient.js";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [toast, setToast] = useState("");
+  const [loading, setLoading] = useState(true); // 👈 wait before redirecting
 
   useEffect(() => {
     const fetchUserAndRole = async () => {
@@ -46,12 +48,14 @@ export default function App() {
       } else {
         setUserRole(null);
       }
+
+      setLoading(false); // ✅ only after we’ve checked Supabase
     };
 
-    // initial load
+    // Initial check
     fetchUserAndRole();
 
-    // 🔥 Listen for new sign-ins (including after email confirmation)
+    // Listen for auth changes (sign in / out)
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
@@ -62,7 +66,7 @@ export default function App() {
           const role =
             savedCode.toUpperCase() === "ADMIN123" ? "admin" : "user";
 
-          // check profile
+          // Check or create user profile
           const { data: profile } = await supabase
             .from("user_profiles")
             .select("id")
@@ -85,9 +89,6 @@ export default function App() {
           );
 
           await fetchUserAndRole();
-
-          // fetch updated role
-          await fetchUserAndRole();
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           setUserRole(null);
@@ -108,10 +109,20 @@ export default function App() {
     }
   };
 
+  // 🕒 Prevent redirect flicker on refresh
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-gray-600 text-lg">Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <ToastMessage message={toast} onClose={() => setToast("")} />
       <Navbar user={user} role={userRole} onLogout={handleLogout} />
+
       <main className="p-4">
         <Routes>
           <Route
@@ -124,67 +135,89 @@ export default function App() {
               )
             }
           />
+
           <Route
             path="/browse"
             element={<Browse user={user} role={userRole} />}
           />
 
+          {/* Admin-only routes */}
           <Route
             path="/post"
             element={
-              userRole === "admin" ? (
+              <ProtectedRoute user={user} role={userRole} requiredRole="admin">
                 <PostEvent user={user} />
-              ) : (
-                <Navigate to="/" />
-              )
+              </ProtectedRoute>
             }
           />
-          <Route path="/me/saved" element={<SavedEvents />} />
-          <Route path="/me/past" element={<PastEvents />} />
-
-          <Route
-            path="/dashboard"
-            element={user ? <UserDashboard user={user} /> : <Navigate to="/" />}
-          />
-
-          <Route
-            path="/profile/edit"
-            element={user ? <Profile user={user} /> : <Navigate to="/" />}
-          />
-          {/* ADMIN BLOCK */}
-          {/* <Route
-  path="/dashboard"
-  element={user ? <UserDashboard user={user} /> : <Navigate to="/" />}
-/>
-
-<Route
-  path="/profile/edit"
-  element={user ? <Profile user={user} /> : <Navigate to="/" />}
-/> */}
-          {/* Payments */}
-          <Route path="/success" element={<Success />} />
-          <Route path="/cancel" element={<Cancel />} />
 
           <Route
             path="/myevents"
             element={
-              userRole === "admin" ? (
+              <ProtectedRoute user={user} role={userRole} requiredRole="admin">
                 <MyEvents user={user} />
-              ) : (
-                <Navigate to="/" />
-              )
+              </ProtectedRoute>
             }
           />
-          <Route path="recovery" element={<Recovery />} />
-          <Route path="/me/events" element={<MyBookingsPage />} />
+
+          {/* Regular user routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute user={user} role={userRole}>
+                <UserDashboard user={user} />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/profile/edit"
+            element={
+              <ProtectedRoute user={user} role={userRole}>
+                <Profile user={user} />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/me/events"
+            element={
+              <ProtectedRoute user={user} role={userRole}>
+                <MyBookingsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/me/saved"
+            element={
+              <ProtectedRoute user={user} role={userRole}>
+                <SavedEvents />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/me/past"
+            element={
+              <ProtectedRoute user={user} role={userRole}>
+                <PastEvents />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Public routes */}
+          <Route path="/success" element={<Success />} />
+          <Route path="/cancel" element={<Cancel />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
-          {/* Fallback or 404 */}
+          <Route path="/recovery" element={<Recovery />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+
       <Footer />
     </div>
   );
