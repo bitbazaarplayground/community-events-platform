@@ -427,12 +427,27 @@ export default function EventCard({
                 if (is_paid && price > 0) {
                   try {
                     setMsg("💳 Redirecting to payment...");
+                    const {
+                      data: { user },
+                    } = await supabase.auth.getUser();
+
+                    const baseUrl =
+                      window.location.hostname === "localhost"
+                        ? "http://localhost:8888"
+                        : window.location.origin;
+
                     const response = await fetch(
-                      "/.netlify/functions/create-checkout-session",
+                      `${baseUrl}/.netlify/functions/create-checkout-session`,
                       {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ eventId: id, title, price }),
+                        body: JSON.stringify({
+                          eventId: id,
+                          title: title || "Untitled Event",
+                          price: Number(price) || 0,
+                          userEmail: user?.email || "guest@example.com",
+                          eventDate: date || new Date().toISOString(),
+                        }),
                       }
                     );
 

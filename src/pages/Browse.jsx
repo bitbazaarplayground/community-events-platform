@@ -44,7 +44,7 @@ export default function Browse() {
         const { filters: cachedFilters } = JSON.parse(cachedNext);
         // compare old cached filters to current ones
         if (JSON.stringify(cachedFilters) !== JSON.stringify(newFilters)) {
-          console.log("🧹 Clearing outdated prefetched data (filters changed)");
+          // console.log("🧹Clearing outdated prefetched data (filters changed)");
           localStorage.removeItem("nextTmPage");
         }
       } catch {
@@ -87,7 +87,6 @@ export default function Browse() {
       if (applied.category) q = q.eq("category_id", applied.category);
 
       const localRes = await q;
-      console.log("🧭 Local events fetched:", localRes.data);
 
       if (localRes.error) {
         console.error("❌ Supabase error:", localRes.error.message);
@@ -117,13 +116,6 @@ export default function Browse() {
         applied?.categoryLabel && TM_SEGMENT_MAP[applied.categoryLabel]
           ? TM_SEGMENT_MAP[applied.categoryLabel]
           : "";
-
-      console.log(
-        "🎫 Using Ticketmaster category:",
-        applied.categoryLabel,
-        "→",
-        tmCategory
-      );
 
       const tmRes = await searchTicketmaster(
         {
@@ -246,7 +238,6 @@ export default function Browse() {
 
       // 🔮 Prefetch next Ticketmaster page (background)
       if (reset && tmRes.hasMore) {
-        console.log("⏳ Preloading next Ticketmaster page...");
         searchTicketmaster(applied, tmRes.nextPage)
           .then((preload) => {
             if (preload?.events?.length) {
@@ -256,9 +247,6 @@ export default function Browse() {
                   filters: applied,
                   data: preload,
                 })
-              );
-              console.log(
-                `✅ Prefetched ${preload.events.length} events for next page`
               );
             }
           })
@@ -375,7 +363,6 @@ export default function Browse() {
                     if (
                       JSON.stringify(cachedFilters) === JSON.stringify(filters)
                     ) {
-                      console.log("🚀 Using prefetched Ticketmaster page");
                       setEvents((prev) => [...prev, ...data.events]);
                       setTmPage(data.nextPage || tmPage);
                       setTmHasMore(data.hasMore);
