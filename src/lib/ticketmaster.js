@@ -79,7 +79,6 @@ export async function searchTicketmaster(filters = {}, page = 0) {
   const TWENTY_MINUTES = 20 * 60 * 1000;
   const cached = cache.get(cacheKey);
   if (cached && now - cached.timestamp < TWENTY_MINUTES) {
-    console.log("💾 Using cached Ticketmaster data for:", filters);
     return cached.data;
   }
 
@@ -174,7 +173,6 @@ export async function logTicketmasterCategories() {
         );
       }
     });
-    console.log("📚 Ticketmaster Segments + Genres:", structured);
   } catch (err) {
     console.error("❌ Failed to load Ticketmaster categories:", err);
   }
