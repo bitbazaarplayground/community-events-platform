@@ -34,10 +34,15 @@ export const handler = async (event) => {
 
     if (stripeEvent.type === "checkout.session.completed") {
       const session = stripeEvent.data.object;
-      const user_email = session.customer_email;
+      const user_email =
+        session.customer_email ||
+        session.customer_details?.email ||
+        session.metadata?.user_email ||
+        "guest@example.com";
+
       const event_id = session.metadata?.event_id;
-      const event_title = session.metadata?.event_title;
-      const amount = session.amount_total / 100;
+      const event_title = session.metadata?.event_title || "Untitled Event";
+      const amount = (session.amount_total || 0) / 100;
 
       console.log("💰 Payment success:", user_email, event_title);
 
