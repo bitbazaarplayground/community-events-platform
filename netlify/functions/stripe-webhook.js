@@ -1,3 +1,7 @@
+export const config = {
+  bodyParser: false,
+};
+
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 
