@@ -9,8 +9,8 @@ import Auth from "./pages/Auth.jsx";
 import Browse from "./pages/Browse.jsx";
 import Cancel from "./pages/Cancel.jsx";
 import Home from "./pages/Home.jsx";
-import MyBookingsPage from "./pages/MyBookingsPage.jsx";
 import MyEvents from "./pages/MyEvents.jsx";
+import MyTickets from "./pages/MyTickets.jsx";
 import PastEvents from "./pages/PastEvents.jsx";
 import PostEvent from "./pages/PostEvent.jsx";
 import Profile from "./pages/Profile.jsx";
@@ -183,7 +183,7 @@ export default function App() {
             path="/me/events"
             element={
               <ProtectedRoute user={user} role={userRole}>
-                <MyBookingsPage />
+                <MyTickets />
               </ProtectedRoute>
             }
           />

@@ -1,14 +1,48 @@
-// src/pages/MyBookingsPage.jsx
+// src/pages/MyTickets.jsx
+import { jsPDF } from "jspdf";
+import QRCode from "qrcode";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { buildGoogleCalendarUrl } from "../lib/calendar.js";
 import { supabase } from "../supabaseClient.js";
 
+async function downloadTicket(event, user) {
+  const doc = new jsPDF();
+
+  // Create QR data
+  const qrData = `EVENT:${event.id}|USER:${user.email}|REF:${event.id}-${user.email}`;
+
+  // Generate QR code as DataURL
+  const qrImage = await QRCode.toDataURL(qrData, { width: 128 });
+
+  // Title
+  doc.setFontSize(18);
+  doc.text("🎟 Event Ticket", 20, 20);
+
+  // Event info
+  doc.setFontSize(12);
+  doc.text(`Event: ${event.title}`, 20, 40);
+  doc.text(`Date: ${new Date(event.date_time).toLocaleString()}`, 20, 50);
+  if (event.location) doc.text(`Location: ${event.location}`, 20, 60);
+  doc.text(`Attendee: ${user.email}`, 20, 70);
+
+  // Add QR Code
+  doc.addImage(qrImage, "PNG", 20, 85, 50, 50);
+
+  // Footer
+  doc.setFontSize(10);
+  doc.text("Thank you for your purchase!", 20, 150);
+  doc.text("Please show this QR code at the event entrance.", 20, 157);
+
+  // Save
+  doc.save(`ticket_${event.title.replace(/\s+/g, "_")}.pdf`);
+}
+
 const PAGE_SIZE = 12;
 const EVENT_PLACEHOLDER = "/img/concertCrowd.jpeg";
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : "");
 
-export default function MyBookingsPage() {
+export default function MyTickets() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
@@ -46,17 +80,17 @@ export default function MyBookingsPage() {
     const to = from + PAGE_SIZE - 1;
 
     const { data, error } = await supabase
-      .from("signups")
+      .from("payments")
       .select(
         `
-        event_id,
-        created_at,
-        event:events (
-          id, title, description, location, date_time, price, image_url, categories(name)
-        )
-      `
+    event_id,
+    created_at,
+    event:events (
+      id, title, description, location, date_time, price, image_url, categories(name)
+    )
+  `
       )
-      .eq("user_id", user.id)
+      .eq("user_email", user.email)
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -138,7 +172,8 @@ export default function MyBookingsPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">My Booked Events</h1>
+        <h1 className="text-2xl font-bold">My Tickets</h1>
+
         <button
           onClick={() => navigate("/dashboard")}
           className="text-purple-600 hover:underline"
@@ -232,14 +267,13 @@ export default function MyBookingsPage() {
                         Add to Google Calendar
                       </a>
                     )}
-                    {tab === "upcoming" && (
-                      <button
-                        onClick={() => cancelSignup(ev.id)}
-                        className="px-3 py-1 text-sm border border-red-600 text-red-600 rounded hover:bg-red-50"
-                      >
-                        Cancel
-                      </button>
-                    )}
+
+                    <button
+                      onClick={() => downloadTicket(ev, user)}
+                      className="px-3 py-1 text-sm border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
+                    >
+                      Download Ticket
+                    </button>
                   </div>
                 </div>
               </div>

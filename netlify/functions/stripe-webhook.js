@@ -64,9 +64,35 @@ export const handler = async (event) => {
         paid_amount: amount,
       });
 
-      if (attError)
+      if (attError) {
         console.error("❌ Error saving attendee:", attError.message);
-      else console.log("✅ Attendee record inserted");
+      } else {
+        console.log("✅ Attendee record inserted");
+
+        // 🔹 Send confirmation email with ticket
+        try {
+          const resp = await fetch(
+            // ✅ Correct Supabase Function URL
+            "https://actnlispzkojepsmdsss.functions.supabase.co/send-ticket-email",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                event: { id: event_id, title: event_title },
+                user: { email: user_email },
+              }),
+            }
+          );
+
+          if (resp.ok) {
+            console.log("📧 Ticket email sent successfully!");
+          } else {
+            console.error("⚠️ Ticket email failed:", await resp.text());
+          }
+        } catch (err) {
+          console.error("❌ Error calling send-ticket-email function:", err);
+        }
+      }
     }
 
     return { statusCode: 200, body: "Webhook received successfully" };
