@@ -32,6 +32,8 @@ export default function EventCard({
 }) {
   const [creator, setCreator] = useState(null);
   const [signing, setSigning] = useState(false);
+  const [user, setUser] = useState(null);
+
   const [msg, setMsg] = useState("");
   const [saved, setSaved] = useState(false);
   // Safety net
@@ -63,6 +65,13 @@ export default function EventCard({
       setSaved(!!data);
     })();
   }, [id]);
+  // === Fetch current logged-in user ===
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data?.user || null);
+    })();
+  }, []);
 
   // === Fetch creator (for local events only) ===
   useEffect(() => {
@@ -409,6 +418,12 @@ export default function EventCard({
             </span>
           </div>
         )}
+        {/* 🔍 Debug info (temporary, helps verify IDs) */}
+        {user && (
+          <pre className="text-[10px] text-gray-400 mb-2">
+            {JSON.stringify({ userId: user.id, creatorId }, null, 2)}
+          </pre>
+        )}
 
         {/* Buttons */}
         <div className="mt-auto">
@@ -419,6 +434,13 @@ export default function EventCard({
               location={location}
               external_url={external_url}
             />
+          ) : user?.id &&
+            String(user.id).trim() === String(creatorId).trim() ? (
+            <div className="text-center">
+              <span className="inline-block bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">
+                Your Event
+              </span>
+            </div>
           ) : (
             <button
               type="button"

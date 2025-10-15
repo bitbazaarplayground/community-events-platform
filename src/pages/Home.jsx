@@ -58,28 +58,57 @@ export default function Home() {
     }));
 
     // === 2️⃣ Fetch Ticketmaster events (optional search) ===
-    const tmRes = await searchTicketmaster({
-      q: query,
-      location: "", // optional — could be user’s city later
-      category: "",
-    });
+    // const tmRes = await searchTicketmaster({
+    //   q: query,
+    //   location: "", // optional — could be user’s city later
+    //   category: "",
+    // });
 
-    const ticketmasterEvents = (tmRes?.events || [])
-      .slice(0, TEASER_SIZE)
-      .map((ev) => ({
-        id: ev.id,
-        title: ev.title,
-        date_time: ev.date_time,
-        price: ev.price || null,
-        location: ev.location || "",
-        description: ev.description || "",
-        image_url: ev.image_url,
-        external_source: "ticketmaster",
-        external_url: ev.external_url,
-        external_organizer: ev.external_organizer,
-        extraCount: ev.extraCount || 0,
-        extraDates: ev.extraDates || [],
-      }));
+    // const ticketmasterEvents = (tmRes?.events || [])
+    //   .slice(0, TEASER_SIZE)
+    //   .map((ev) => ({
+    //     id: ev.id,
+    //     title: ev.title,
+    //     date_time: ev.date_time,
+    //     price: ev.price || null,
+    //     location: ev.location || "",
+    //     description: ev.description || "",
+    //     image_url: ev.image_url,
+    //     external_source: "ticketmaster",
+    //     external_url: ev.external_url,
+    //     external_organizer: ev.external_organizer,
+    //     extraCount: ev.extraCount || 0,
+    //     extraDates: ev.extraDates || [],
+    //   }));
+    // === 2️⃣ Fetch Ticketmaster events (optional search, safe) ===
+    let ticketmasterEvents = [];
+    try {
+      const tmRes = await searchTicketmaster({
+        q: query,
+        location: "",
+        category: "",
+      });
+
+      ticketmasterEvents = (tmRes?.events || [])
+        .slice(0, TEASER_SIZE)
+        .map((ev) => ({
+          id: ev.id,
+          title: ev.title,
+          date_time: ev.date_time,
+          price: ev.price || null,
+          location: ev.location || "",
+          description: ev.description || "",
+          image_url: ev.image_url,
+          external_source: "ticketmaster",
+          external_url: ev.external_url,
+          external_organizer: ev.external_organizer,
+          extraCount: ev.extraCount || 0,
+          extraDates: ev.extraDates || [],
+        }));
+    } catch (err) {
+      console.error("⚠️ Ticketmaster fetch failed:", err.message);
+      ticketmasterEvents = [];
+    }
 
     // === 3️⃣ Combine both sources ===
     const combined = [...localEvents, ...ticketmasterEvents]

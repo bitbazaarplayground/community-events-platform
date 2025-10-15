@@ -28,6 +28,8 @@ export default function Browse() {
   const [tmHasMore, setTmHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [tmUnavailable, setTmUnavailable] = useState(false);
+
   const PAGE_SIZE = 12;
 
   useEffect(() => {
@@ -112,21 +114,29 @@ export default function Browse() {
       }));
 
       // === 2️⃣ Ticketmaster events ===
-      const tmCategory =
-        applied?.categoryLabel && TM_SEGMENT_MAP[applied.categoryLabel]
-          ? TM_SEGMENT_MAP[applied.categoryLabel]
-          : "";
+      let ticketmaster = [];
+      try {
+        const tmCategory =
+          applied?.categoryLabel && TM_SEGMENT_MAP[applied.categoryLabel]
+            ? TM_SEGMENT_MAP[applied.categoryLabel]
+            : "";
 
-      const tmRes = await searchTicketmaster(
-        {
-          q: applied.event || "",
-          location: applied.location || "",
-          category: tmCategory,
-        },
-        reset ? 0 : tmPage
-      );
+        const tmRes = await searchTicketmaster(
+          {
+            q: applied.event || "",
+            location: applied.location || "",
+            category: tmCategory,
+          },
+          reset ? 0 : tmPage
+        );
 
-      let ticketmaster = tmRes.events || [];
+        ticketmaster = tmRes?.events || [];
+        setTmUnavailable(false); // ✅ API responded fine
+      } catch (err) {
+        console.error("⚠️ Ticketmaster API unavailable:", err.message);
+        setTmUnavailable(true); // ⚠️ Mark API as down
+        ticketmaster = [];
+      }
 
       /// === 3️⃣ Dedupe Ticketmaster events ===
       const hasKeyword = Boolean(applied.event?.trim());
@@ -237,20 +247,36 @@ export default function Browse() {
       setTmHasMore((prev) => (reset ? tmRes.hasMore : prev || tmRes.hasMore));
 
       // 🔮 Prefetch next Ticketmaster page (background)
-      if (reset && tmRes.hasMore) {
-        searchTicketmaster(applied, tmRes.nextPage)
-          .then((preload) => {
-            if (preload?.events?.length) {
-              localStorage.setItem(
-                "nextTmPage",
-                JSON.stringify({
-                  filters: applied,
-                  data: preload,
-                })
-              );
-            }
-          })
-          .catch((err) => console.warn("⚠️ Prefetch failed:", err));
+      // if (reset && tmRes.hasMore) {
+      //   searchTicketmaster(applied, tmRes.nextPage)
+      //     .then((preload) => {
+      //       if (preload?.events?.length) {
+      //         localStorage.setItem(
+      //           "nextTmPage",
+      //           JSON.stringify({
+      //             filters: applied,
+      //             data: preload,
+      //           })
+      //         );
+      //       }
+      //     })
+      //     .catch((err) => console.warn("⚠️ Prefetch failed:", err));
+      // }
+      if (reset && ticketmaster.length > 0) {
+        try {
+          const preload = await searchTicketmaster(applied, tmPage + 1);
+          if (preload?.events?.length) {
+            localStorage.setItem(
+              "nextTmPage",
+              JSON.stringify({
+                filters: applied,
+                data: preload,
+              })
+            );
+          }
+        } catch (err) {
+          console.warn("⚠️ Prefetch failed:", err.message);
+        }
       }
     } catch (err) {
       console.error("fetchEvents failed:", err);
@@ -307,6 +333,13 @@ export default function Browse() {
         <p className="text-center text-gray-500 mb-10">
           Upcoming events you won’t want to miss
         </p>
+        {tmUnavailable && (
+          <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 text-center py-3 px-4 rounded mb-8">
+            ⚠️ Some external events (Ticketmaster) are temporarily unavailable.
+            Local events from our community are still visible — please try again
+            later.
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">

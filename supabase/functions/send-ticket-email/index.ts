@@ -80,7 +80,7 @@ serve(async (req) => {
         </div>
 
         <p>You can also find your ticket anytime in your 
-          <a href="https://jade-rolypoly-5d4274.netlify.app/#/mytickets" style="color: #6c63ff; text-decoration: none; font-weight: bold;">
+          <a href="https://communityeventsplatform.netlify.app/#/mytickets" style="color: #6c63ff; text-decoration: none; font-weight: bold;">
             My Tickets
           </a> section.
         </p>
@@ -88,7 +88,7 @@ serve(async (req) => {
         <p>We look forward to seeing you at the event! 🎶</p>
         <hr style="margin-top: 20px; border: none; border-top: 1px solid #eee;" />
         <p style="font-size: 12px; color: #888;">
-          Sent by <a href="https://jade-rolypoly-5d4274.netlify.app" style="color: #6c63ff; text-decoration: none;">Community Events</a>
+          Sent by <a href="https://communityeventsplatform.netlify.app" style="color: #6c63ff; text-decoration: none;">Community Events</a>
         </p>
       </div>
     `;
