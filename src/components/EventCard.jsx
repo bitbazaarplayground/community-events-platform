@@ -22,7 +22,7 @@ export default function EventCard({
   category,
   seats_left,
   image_url,
-  creatorId,
+  created_by,
   external_source,
   external_url,
   external_organizer,
@@ -78,12 +78,12 @@ export default function EventCard({
     let active = true;
 
     const fetchCreator = async () => {
-      if (!creatorId || external_source === "ticketmaster") return;
+      if (!created_by || external_source === "ticketmaster") return;
 
       const { data, error } = await supabase
         .from("user_profiles")
         .select("first_name, last_name, email, avatar_url, role, display_name")
-        .eq("id", creatorId)
+        .eq("id", created_by)
         .maybeSingle();
 
       if (error) {
@@ -101,7 +101,7 @@ export default function EventCard({
     return () => {
       active = false;
     };
-  }, [creatorId, external_source]);
+  }, [created_by, external_source]);
 
   // const isFree = is_paid === false || Number(price) === 0;
 
@@ -418,12 +418,6 @@ export default function EventCard({
             </span>
           </div>
         )}
-        {/* 🔍 Debug info (temporary, helps verify IDs) */}
-        {user && (
-          <pre className="text-[10px] text-gray-400 mb-2">
-            {JSON.stringify({ userId: user.id, creatorId }, null, 2)}
-          </pre>
-        )}
 
         {/* Buttons */}
         <div className="mt-auto">
@@ -435,7 +429,7 @@ export default function EventCard({
               external_url={external_url}
             />
           ) : user?.id &&
-            String(user.id).trim() === String(creatorId).trim() ? (
+            String(user.id).trim() === String(created_by).trim() ? (
             <div className="text-center">
               <span className="inline-block bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">
                 Your Event
@@ -449,9 +443,20 @@ export default function EventCard({
                 if (is_paid && price > 0) {
                   try {
                     setMsg("💳 Redirecting to payment...");
+
                     const {
                       data: { user },
                     } = await supabase.auth.getUser();
+
+                    // 🧮 Ask for ticket quantity (simple, for now)
+                    const quantityStr = prompt(
+                      "How many tickets would you like to buy?",
+                      "1"
+                    );
+                    const quantity = Math.max(
+                      1,
+                      parseInt(quantityStr, 10) || 1
+                    );
 
                     const baseUrl =
                       window.location.hostname === "localhost"
@@ -469,6 +474,7 @@ export default function EventCard({
                           price: Number(price) || 0,
                           userEmail: user?.email || "guest@example.com",
                           eventDate: date || new Date().toISOString(),
+                          quantity, // ✅ new field
                         }),
                       }
                     );

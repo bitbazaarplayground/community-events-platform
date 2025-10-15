@@ -70,7 +70,7 @@ export default function MyEvents() {
         const { data, error } = await supabase
           .from("events")
           .select(
-            "id, title, date_time, price, image_url, location, categories(name)"
+            "id, title, date_time, price, image_url, location, created_by, categories(name)"
           )
           .eq("created_by", u.id)
           .order("date_time", { ascending: false });
@@ -103,11 +103,11 @@ export default function MyEvents() {
   async function fetchKPIData() {
     setLoading(true);
     try {
-      // Fetch only payments for events created by this admin
+      // Fetch payments linked to this admin’s events
       let query = supabase
         .from("payments")
         .select(
-          "event_id, amount, event_title, created_at, events!inner(created_by)"
+          "event_id, amount, quantity, event_title, user_email, created_at, events!inner(created_by)"
         )
         .eq("events.created_by", user.id);
 
@@ -116,94 +116,173 @@ export default function MyEvents() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // 🧮 Compute KPIs
       const grouped = {};
       let totalRevenue = 0;
-      let totalAttendees = 0;
+      let totalTickets = 0;
 
       data.forEach((p) => {
+        const q = Number(p.quantity) || 1;
         grouped[p.event_id] = grouped[p.event_id] || {
           title: p.event_title,
           revenue: 0,
-          attendees: 0,
+          tickets: 0,
         };
         grouped[p.event_id].revenue += p.amount;
-        grouped[p.event_id].attendees += 1;
+        grouped[p.event_id].tickets += q;
         totalRevenue += p.amount;
-        totalAttendees += 1;
+        totalTickets += q;
       });
 
-      // 🗓️ Group revenue per day (for single-event line chart)
+      // 🗓️ Group revenue per day for selected event
       Object.keys(grouped).forEach((eventId) => {
         const eventPayments = data.filter((p) => p.event_id === eventId);
         const dailyMap = {};
-
         eventPayments.forEach((p) => {
-          const rawDate = p.created_at || null;
+          const rawDate = p.created_at;
           if (!rawDate) return;
-
-          const dateObj = new Date(rawDate);
-          if (isNaN(dateObj.getTime())) return;
-
-          const day = dateObj.toISOString().split("T")[0];
+          const day = new Date(rawDate).toISOString().split("T")[0];
           dailyMap[day] = (dailyMap[day] || 0) + p.amount;
         });
-
         grouped[eventId].daily = Object.entries(dailyMap).map(
-          ([date, revenue]) => ({
-            date,
-            revenue,
-          })
+          ([date, revenue]) => ({ date, revenue })
         );
       });
 
       const topEvent =
         Object.values(grouped).sort((a, b) => b.revenue - a.revenue)[0] || null;
 
-      const newStats = {
+      // ✅ Build last 5 purchases (for “All Events” view)
+      const lastPurchases = data
+        .map((p) => ({
+          event_title: p.event_title,
+          email: p.user_email,
+          amount: Number(p.amount) || 0,
+          quantity: Number(p.quantity) || 1,
+          created_at: p.created_at,
+        }))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 5);
+
+      setStats({
         totalRevenue,
-        totalAttendees,
+        totalTickets,
         topEvent,
         eventMetrics: grouped,
+        lastPurchases,
         attendees: [],
-      };
-
-      // 🟣 Fetch attendees via fallback (join by email)
-      if (selectedEventId) {
-        const { data: attendeesData, error: attendeesError } = await supabase
-          .from("payments")
-          .select("user_email, amount, created_at")
-          .eq("event_id", selectedEventId);
-
-        if (!attendeesError && attendeesData?.length) {
-          const emails = attendeesData.map((a) => a.user_email);
-          const { data: profiles } = await supabase
-            .from("user_profiles")
-            .select("email, first_name, last_name")
-            .in("email", emails);
-
-          const merged = attendeesData.map((p) => {
-            const profile = profiles?.find((u) => u.email === p.user_email);
-            return {
-              email: p.user_email,
-              amount: Number(p.amount) || 0,
-              created_at: p.created_at,
-              first_name: profile?.first_name || null,
-              last_name: profile?.last_name || null,
-            };
-          });
-
-          newStats.attendees = merged;
-        }
-      }
-
-      setStats(newStats);
+      });
     } catch (err) {
       console.error("❌ Error fetching KPI data:", err.message);
     } finally {
       setLoading(false);
     }
   }
+
+  // async function fetchKPIData() {
+  //   setLoading(true);
+  //   try {
+  //     // Fetch only payments for events created by this admin
+  //     let query = supabase
+  //       .from("payments")
+  //       .select(
+  //         "event_id, amount, quantity, event_title, created_at, events!inner(created_by)"
+  //       )
+  //       .eq("events.created_by", user.id);
+
+  //     if (selectedEventId) query = query.eq("event_id", selectedEventId);
+
+  //     const { data, error } = await query;
+  //     if (error) throw error;
+
+  //     // 🧮 Compute KPIs
+  //     const grouped = {};
+  //     let totalRevenue = 0;
+  //     let totalAttendees = 0;
+
+  //     data.forEach((p) => {
+  //       grouped[p.event_id] = grouped[p.event_id] || {
+  //         title: p.event_title,
+  //         revenue: 0,
+  //         attendees: 0,
+  //       };
+  //       grouped[p.event_id].revenue += p.amount;
+  //       grouped[p.event_id].attendees += 1;
+  //       totalRevenue += p.amount;
+  //       totalAttendees += 1;
+  //     });
+
+  //     // 🗓️ Group revenue per day (for single-event line chart)
+  //     Object.keys(grouped).forEach((eventId) => {
+  //       const eventPayments = data.filter((p) => p.event_id === eventId);
+  //       const dailyMap = {};
+
+  //       eventPayments.forEach((p) => {
+  //         const rawDate = p.created_at || null;
+  //         if (!rawDate) return;
+
+  //         const dateObj = new Date(rawDate);
+  //         if (isNaN(dateObj.getTime())) return;
+
+  //         const day = dateObj.toISOString().split("T")[0];
+  //         dailyMap[day] = (dailyMap[day] || 0) + p.amount;
+  //       });
+
+  //       grouped[eventId].daily = Object.entries(dailyMap).map(
+  //         ([date, revenue]) => ({
+  //           date,
+  //           revenue,
+  //         })
+  //       );
+  //     });
+
+  //     const topEvent =
+  //       Object.values(grouped).sort((a, b) => b.revenue - a.revenue)[0] || null;
+
+  //     const newStats = {
+  //       totalRevenue,
+  //       totalAttendees,
+  //       topEvent,
+  //       eventMetrics: grouped,
+  //       attendees: [],
+  //     };
+
+  //     // 🟣 Fetch attendees via fallback (join by email)
+  //     if (selectedEventId) {
+  //       const { data: attendeesData, error: attendeesError } = await supabase
+  //         .from("payments")
+  //         .select("user_email, amount, created_at")
+  //         .eq("event_id", selectedEventId);
+
+  //       if (!attendeesError && attendeesData?.length) {
+  //         const emails = attendeesData.map((a) => a.user_email);
+  //         const { data: profiles } = await supabase
+  //           .from("user_profiles")
+  //           .select("email, first_name, last_name")
+  //           .in("email", emails);
+
+  //         const merged = attendeesData.map((p) => {
+  //           const profile = profiles?.find((u) => u.email === p.user_email);
+  //           return {
+  //             email: p.user_email,
+  //             amount: Number(p.amount) || 0,
+  //             quantity: p.quantity || 1,
+  //             created_at: p.created_at,
+  //             first_name: profile?.first_name || null,
+  //             last_name: profile?.last_name || null,
+  //           };
+  //         });
+
+  //         newStats.attendees = merged;
+  //       }
+  //     }
+
+  //     setStats(newStats);
+  //   } catch (err) {
+  //     console.error("❌ Error fetching KPI data:", err.message);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }
 
   // ================================================================
   // 🔹 STEP 3 — Sorting logic for attendee table
@@ -262,12 +341,14 @@ export default function MyEvents() {
       </div>
     );
   // ================================================================
-  // 🔹 STEP 5 — CSV Export for attendees
+  // 🔹 STEP 5 — CSV Export Functions
   // ================================================================
+
+  // 🟣 Download CSV for single event attendees
   function downloadCSV() {
     if (!stats.attendees?.length) return;
 
-    const headers = ["Name", "Email", "Amount (£)", "Purchase Date"];
+    const headers = ["Name", "Email", "Tickets", "Amount (£)", "Purchase Date"];
     const rows = stats.attendees.map((a) => {
       const fullName =
         a.first_name || a.last_name
@@ -285,10 +366,25 @@ export default function MyEvents() {
       return [
         `"${fullName}"`,
         `"${a.email}"`,
+        `"${a.quantity || 1}"`,
         `"£${a.amount.toFixed(2)}"`,
         `"${formattedDate}"`,
       ].join(",");
     });
+
+    // 🧮 Totals
+    const totalTickets = stats.attendees.reduce(
+      (sum, a) => sum + (a.quantity || 1),
+      0
+    );
+    const totalRevenue = stats.attendees.reduce((sum, a) => sum + a.amount, 0);
+
+    rows.push("");
+    rows.push(
+      `"Total Tickets: ${totalTickets}","Total Revenue: £${totalRevenue.toFixed(
+        2
+      )}"`
+    );
 
     const csvContent = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -297,6 +393,51 @@ export default function MyEvents() {
     const link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", `attendees_${selectedEventId || "all"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // 🟣 Download CSV for all events (admin summary)
+  function downloadAllEventsCSV() {
+    if (!stats.lastPurchases?.length) return;
+
+    const headers = [
+      "Event",
+      "Email",
+      "Tickets",
+      "Amount (£)",
+      "Purchase Date",
+    ];
+    const rows = stats.lastPurchases.map((p) =>
+      [
+        `"${p.event_title}"`,
+        `"${p.email}"`,
+        `"${p.quantity}"`,
+        `"£${p.amount.toFixed(2)}"`,
+        `"${new Date(p.created_at).toLocaleString("en-GB")}"`,
+      ].join(",")
+    );
+
+    const totalTickets = stats.lastPurchases.reduce(
+      (sum, p) => sum + (p.quantity || 1),
+      0
+    );
+    const totalAmount = stats.lastPurchases.reduce(
+      (sum, p) => sum + (p.amount || 0),
+      0
+    );
+
+    rows.push("");
+    rows.push(`"Total Tickets","${totalTickets}"`);
+    rows.push(`"Total Revenue","£${totalAmount.toFixed(2)}"`);
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "all_events_summary.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -341,7 +482,8 @@ export default function MyEvents() {
         </div>
 
         <div className="bg-purple-50 p-4 rounded-lg shadow-sm text-center">
-          <h3 className="text-gray-500 text-sm mb-1">Total Attendees</h3>
+          <h3 className="text-gray-500 text-sm mb-1">Total Tickets Sold</h3>
+
           <p className="text-2xl font-bold text-purple-600">
             {selectedEventId
               ? stats.eventMetrics[selectedEventId]?.attendees || 0
@@ -402,7 +544,7 @@ export default function MyEvents() {
               data={Object.entries(stats.eventMetrics).map(([id, ev]) => ({
                 name: ev.title,
                 Revenue: ev.revenue,
-                Attendees: ev.attendees,
+                Tickets: ev.tickets || 0,
               }))}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -412,11 +554,60 @@ export default function MyEvents() {
               <Tooltip />
               <Legend />
               <Bar yAxisId="left" dataKey="Revenue" fill="#9333ea" />
-              <Bar yAxisId="right" dataKey="Attendees" fill="#60a5fa" />
+              <Bar yAxisId="right" dataKey="Tickets" fill="#60a5fa" />
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
+      {/* 🧾 All Events Summary (shows only when no specific event is selected) */}
+      {!selectedEventId && (
+        <div className="mt-10 bg-white p-6 rounded-lg shadow border border-gray-100">
+          <h4 className="font-semibold text-purple-700 mb-4">
+            Latest Purchases (All Events)
+          </h4>
+
+          {stats.lastPurchases?.length > 0 ? (
+            <table className="min-w-full border-t border-gray-200 text-sm text-gray-800 mb-4">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left py-2 px-3">Event</th>
+                  <th className="text-left py-2 px-3">Email</th>
+                  <th className="text-left py-2 px-3">Tickets</th>
+                  <th className="text-left py-2 px-3">Amount (£)</th>
+                  <th className="text-left py-2 px-3">Purchase Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.lastPurchases.map((p, idx) => (
+                  <tr
+                    key={idx}
+                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  >
+                    <td className="py-2 px-3">{p.event_title}</td>
+                    <td className="py-2 px-3">{p.email}</td>
+                    <td className="py-2 px-3">{p.quantity}</td>
+                    <td className="py-2 px-3">£{p.amount.toFixed(2)}</td>
+                    <td className="py-2 px-3">
+                      {new Date(p.created_at).toLocaleString("en-GB")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-gray-500 italic">No recent purchases found.</p>
+          )}
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={downloadAllEventsCSV}
+              className="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg shadow-sm transition"
+            >
+              Download All Events CSV
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 👥 Registered Attendees List */}
       {selectedEventId && (
@@ -434,38 +625,40 @@ export default function MyEvents() {
                       className="text-left py-2 px-3 cursor-pointer"
                       onClick={() => requestSort("name")}
                     >
-                      Name{" "}
+                      Name
                       {sortConfig.key === "name"
                         ? sortConfig.direction === "asc"
-                          ? "▲"
-                          : "▼"
+                          ? " ▲"
+                          : " ▼"
                         : ""}
                     </th>
                     <th className="text-left py-2 px-3">Email</th>
+                    <th className="text-left py-2 px-3">Tickets</th>
                     <th
                       className="text-left py-2 px-3 cursor-pointer"
                       onClick={() => requestSort("amount")}
                     >
-                      Amount (£){" "}
+                      Amount (£)
                       {sortConfig.key === "amount"
                         ? sortConfig.direction === "asc"
-                          ? "▲"
-                          : "▼"
+                          ? " ▲"
+                          : " ▼"
                         : ""}
                     </th>
                     <th
                       className="text-left py-2 px-3 cursor-pointer"
                       onClick={() => requestSort("created_at")}
                     >
-                      Purchase Date{" "}
+                      Purchase Date
                       {sortConfig.key === "created_at"
                         ? sortConfig.direction === "asc"
-                          ? "▲"
-                          : "▼"
+                          ? " ▲"
+                          : " ▼"
                         : ""}
                     </th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {sortedAttendees.map((a, idx) => {
                     const fullName =
@@ -489,6 +682,8 @@ export default function MyEvents() {
                         <td className="py-2 px-3">{fullName}</td>
                         <td className="py-2 px-3">{a.email}</td>
                         <td className="py-2 px-3">£{a.amount.toFixed(2)}</td>
+                        <td className="py-2 px-3">{a.quantity || 1}</td>
+
                         <td className="py-2 px-3">{formattedDate}</td>
                       </tr>
                     );

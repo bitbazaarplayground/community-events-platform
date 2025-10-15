@@ -1,3 +1,5 @@
+// netlify/functions/create-checkout-session.js
+
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -5,28 +7,45 @@ const SITE_URL =
   process.env.SITE_URL || "https://communityeventsplatform.netlify.app";
 
 export async function handler(event) {
-  console.log(
-    "🔑 STRIPE_SECRET_KEY detected:",
-    !!process.env.STRIPE_SECRET_KEY
-  );
-  console.log("🔍 STRIPE_SECRET_KEY present:", !!process.env.STRIPE_SECRET_KEY);
+  // ✅ Handle CORS preflight
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+      body: "",
+    };
+  }
+
+  console.log("🔑 Stripe key detected:", !!process.env.STRIPE_SECRET_KEY);
 
   try {
-    console.log("Request body:", event.body);
-    const { title, price, eventId, userEmail, eventDate } = JSON.parse(
-      event.body
-    );
-    console.log("Parsed data:", {
+    const {
       title,
       price,
       eventId,
       userEmail,
       eventDate,
+      quantity = 1,
+    } = JSON.parse(event.body);
+    console.log("📦 Parsed request:", {
+      title,
+      price,
+      eventId,
+      userEmail,
+      eventDate,
+      quantity,
     });
 
     if (!title || !price || isNaN(price)) {
       return {
         statusCode: 400,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ error: "Invalid event data" }),
       };
     }
@@ -35,7 +54,7 @@ export async function handler(event) {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      customer_email: userEmail, // So Stripe knows who paid
+      customer_email: userEmail,
       line_items: [
         {
           price_data: {
@@ -43,13 +62,14 @@ export async function handler(event) {
             product_data: { name: title, description: `Event on ${eventDate}` },
             unit_amount: Math.round(Number(price) * 100),
           },
-          quantity: 1,
+          quantity,
         },
       ],
       metadata: {
         event_id: eventId,
         event_title: title,
         event_date: eventDate,
+        quantity,
       },
       success_url: `${SITE_URL}/success`,
       cancel_url: `${SITE_URL}/cancel`,
@@ -57,13 +77,22 @@ export async function handler(event) {
 
     return {
       statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
       body: JSON.stringify({ url: session.url }),
     };
   } catch (error) {
     console.error("Stripe session error:", error.message);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
       body: JSON.stringify({ error: error.message || "Unknown server error" }),
     };
   }
