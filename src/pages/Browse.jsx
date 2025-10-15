@@ -115,13 +115,16 @@ export default function Browse() {
 
       // === 2️⃣ Ticketmaster events ===
       let ticketmaster = [];
+      let tmRes = { events: [], nextPage: 0, hasMore: false };
+
       try {
         const tmCategory =
           applied?.categoryLabel && TM_SEGMENT_MAP[applied.categoryLabel]
             ? TM_SEGMENT_MAP[applied.categoryLabel]
             : "";
 
-        const tmRes = await searchTicketmaster(
+        // ✅ Update the already-declared tmRes
+        tmRes = await searchTicketmaster(
           {
             q: applied.event || "",
             location: applied.location || "",

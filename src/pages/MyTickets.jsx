@@ -83,13 +83,16 @@ export default function MyTickets() {
       .from("payments")
       .select(
         `
-    event_id,
-    created_at,
-    event:events (
-      id, title, description, location, date_time, price, image_url, categories(name)
-    )
-  `
+          event_id,
+          amount,
+          quantity,
+          created_at,
+          events (
+            id, title, description, location, date_time, price, image_url, categories(name)
+          )
+        `
       )
+
       .eq("user_email", user.email)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -101,16 +104,17 @@ export default function MyTickets() {
     }
 
     const normalized = (data || [])
-      .map((r) => r.event)
-      .filter(Boolean)
-      .map((ev) => ({
-        id: ev.id,
-        title: ev.title,
-        date_time: ev.date_time,
-        location: ev.location,
-        description: ev.description,
-        image_url: ev.image_url,
-        category: ev.categories?.name || null,
+      .filter((r) => r.event)
+      .map((r) => ({
+        id: r.event.id,
+        title: r.event.title,
+        date_time: r.event.date_time,
+        location: r.event.location,
+        description: r.event.description,
+        image_url: r.event.image_url,
+        category: r.event.categories?.name || null,
+        quantity: r.quantity || 1,
+        amount: r.amount || 0,
       }));
 
     setRows((prev) => (reset ? normalized : [...prev, ...normalized]));
@@ -255,6 +259,16 @@ export default function MyTickets() {
                   {ev.location && (
                     <p className="text-xs text-gray-500">{ev.location}</p>
                   )}
+                  <p className="text-sm text-gray-600">
+                    🎟️ Tickets:{" "}
+                    <span className="font-semibold">{ev.quantity || 1}</span>
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    💷 Total Paid:{" "}
+                    <span className="font-semibold">
+                      £{(ev.amount || 0).toFixed(2)}
+                    </span>
+                  </p>
 
                   <div className="mt-auto flex gap-2 pt-3">
                     {gcal && (
