@@ -249,22 +249,6 @@ export default function Browse() {
 
       setTmHasMore((prev) => (reset ? tmRes.hasMore : prev || tmRes.hasMore));
 
-      // 🔮 Prefetch next Ticketmaster page (background)
-      // if (reset && tmRes.hasMore) {
-      //   searchTicketmaster(applied, tmRes.nextPage)
-      //     .then((preload) => {
-      //       if (preload?.events?.length) {
-      //         localStorage.setItem(
-      //           "nextTmPage",
-      //           JSON.stringify({
-      //             filters: applied,
-      //             data: preload,
-      //           })
-      //         );
-      //       }
-      //     })
-      //     .catch((err) => console.warn("⚠️ Prefetch failed:", err));
-      // }
       if (reset && ticketmaster.length > 0) {
         try {
           const preload = await searchTicketmaster(applied, tmPage + 1);
