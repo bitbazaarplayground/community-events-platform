@@ -1,3 +1,5 @@
+// /netlify/functions/stripe-webhook.js
+
 export const config = {
   bodyParser: false,
 };
@@ -43,25 +45,35 @@ export const handler = async (event) => {
       const event_id = session.metadata?.event_id;
       const event_title = session.metadata?.event_title || "Untitled Event";
       const amount = (session.amount_total || 0) / 100;
+      const quantity = Number(session.metadata?.quantity) || 1; // ✅ NEW
 
-      console.log("💰 Payment success:", user_email, event_title);
+      console.log("💰 Payment success:", {
+        user_email,
+        event_title,
+        amount,
+        quantity,
+      });
 
+      // ✅ Now include quantity when saving payment
       const { error: payError } = await supabase.from("payments").insert({
         user_email,
         event_id,
         event_title,
         amount,
+        quantity, // ✅ NEW
         status: "succeeded",
       });
 
       if (payError) console.error("❌ Error saving payment:", payError.message);
       else console.log("✅ Payment record inserted");
 
+      // 👥 Save attendee record (optional but keep it consistent)
       const { error: attError } = await supabase.from("attendees").insert({
         event_id,
         user_email,
         user_name: user_email.split("@")[0],
         paid_amount: amount,
+        tickets: quantity, // ✅ optional: track tickets in attendees too
       });
 
       if (attError) {
@@ -72,7 +84,6 @@ export const handler = async (event) => {
         // 🔹 Send confirmation email with ticket
         try {
           const resp = await fetch(
-            // ✅ Correct Supabase Function URL
             "https://actnlispzkojepsmdsss.functions.supabase.co/send-ticket-email",
             {
               method: "POST",
