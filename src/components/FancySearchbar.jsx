@@ -251,7 +251,20 @@ export default function FancySearchBar({
         className="w-full border rounded-full px-4 py-3 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
         aria-label="Search"
       />
-      <FaSearch className="absolute right-3 top-3 text-gray-400" />
+
+      <button
+        onClick={() => {
+          const q = inputValue.trim();
+          if (q.length > 0) {
+            inputTouchedRef.current = true;
+            onSearch?.(q);
+          }
+        }}
+        className="absolute right-6 top-4 text-gray-400 hover:text-purple-600 transition"
+        aria-label="Search"
+      >
+        <FaSearch />
+      </button>
 
       {/* Animated placeholder (only if user hasn't typed) */}
       {!userTyped && (

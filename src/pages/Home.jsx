@@ -57,29 +57,6 @@ export default function Home() {
       extra_dates: row.extra_dates || [],
     }));
 
-    // === 2️⃣ Fetch Ticketmaster events (optional search) ===
-    // const tmRes = await searchTicketmaster({
-    //   q: query,
-    //   location: "", // optional — could be user’s city later
-    //   category: "",
-    // });
-
-    // const ticketmasterEvents = (tmRes?.events || [])
-    //   .slice(0, TEASER_SIZE)
-    //   .map((ev) => ({
-    //     id: ev.id,
-    //     title: ev.title,
-    //     date_time: ev.date_time,
-    //     price: ev.price || null,
-    //     location: ev.location || "",
-    //     description: ev.description || "",
-    //     image_url: ev.image_url,
-    //     external_source: "ticketmaster",
-    //     external_url: ev.external_url,
-    //     external_organizer: ev.external_organizer,
-    //     extraCount: ev.extraCount || 0,
-    //     extraDates: ev.extraDates || [],
-    //   }));
     // === 2️⃣ Fetch Ticketmaster events (optional search, safe) ===
     let ticketmasterEvents = [];
     try {
@@ -89,30 +66,72 @@ export default function Home() {
         category: "",
       });
 
-      ticketmasterEvents = (tmRes?.events || [])
-        .slice(0, TEASER_SIZE)
-        .map((ev) => ({
-          id: ev.id,
-          title: ev.title,
-          date_time: ev.date_time,
-          price: ev.price || null,
-          location: ev.location || "",
-          description: ev.description || "",
-          image_url: ev.image_url,
-          external_source: "ticketmaster",
-          external_url: ev.external_url,
-          external_organizer: ev.external_organizer,
-          extraCount: ev.extraCount || 0,
-          extraDates: ev.extraDates || [],
-        }));
+      ticketmasterEvents = (tmRes?.events || []).map((ev) => ({
+        id: ev.id,
+        title: ev.title,
+        date_time: ev.date_time,
+        price: ev.price || null,
+        location: ev.location || "",
+        description: ev.description || "",
+        image_url: ev.image_url,
+        external_source: "ticketmaster",
+        external_url: ev.external_url,
+        external_organizer: ev.external_organizer,
+        extraCount: ev.extraCount || 0,
+        extraDates: ev.extraDates || [],
+      }));
+
+      // 🧹 Dedupe Ticketmaster events exactly like Browse.jsx
+      const grouped = {};
+
+      // same normalization as Browse
+      const normalizeText = (str = "") =>
+        str
+          .toLowerCase()
+          .trim()
+          .replace(/\b(mon|tue|wed|thu|fri|sat|sun)(day)?\b/gi, "")
+          .replace(/\b\d{1,2}:\d{2}\b/g, "")
+          .replace(/[^\w\s]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+      for (const ev of ticketmasterEvents) {
+        const title = normalizeText(ev.title);
+        const venue =
+          normalizeText(
+            ev.location?.split(",")[0] ||
+              ev._embedded?.venues?.[0]?.name ||
+              ev._embedded?.venues?.[0]?.city?.name ||
+              ""
+          ) || "unknown";
+
+        const key = `${title}::${venue}`;
+        const date = new Date(ev.date_time);
+
+        if (!grouped[key]) {
+          grouped[key] = { ...ev, extraDates: [] };
+        } else {
+          grouped[key].extraDates.push(date);
+          const currentDate = new Date(grouped[key].date_time);
+          if (date < currentDate) grouped[key].date_time = ev.date_time;
+        }
+      }
+
+      // add extraCount and keep the earliest date
+      ticketmasterEvents = Object.values(grouped).map((ev) => ({
+        ...ev,
+        extraCount: ev.extraDates.length,
+        extraDates: ev.extraDates,
+      }));
     } catch (err) {
       console.error("⚠️ Ticketmaster fetch failed:", err.message);
       ticketmasterEvents = [];
     }
 
     // === 3️⃣ Combine both sources ===
+    // (simple, consistent shuffle for visual variety)
     const combined = [...localEvents, ...ticketmasterEvents]
-      .sort(() => Math.random() - 0.5) // small shuffle for variety
+      .sort((a, b) => new Date(a.date_time) - new Date(b.date_time))
       .slice(0, TEASER_SIZE);
 
     setEvents(combined);

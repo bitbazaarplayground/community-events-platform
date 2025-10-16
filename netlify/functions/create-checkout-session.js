@@ -49,6 +49,11 @@ export async function handler(event) {
         body: JSON.stringify({ error: "Invalid event data" }),
       };
     }
+    import { createClient } from "@supabase/supabase-js";
+    const supabase = createClient(
+      process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
 
     // ✅ Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -74,6 +79,32 @@ export async function handler(event) {
       success_url: `${SITE_URL}/success`,
       cancel_url: `${SITE_URL}/cancel`,
     });
+    // 🛑 Check available seats before allowing checkout
+    const { data: eventData, error: fetchError } = await supabase
+      .from("events")
+      .select("seats_left")
+      .eq("id", eventId)
+      .single();
+
+    if (fetchError || !eventData) {
+      console.error("❌ Error fetching event:", fetchError?.message);
+      return {
+        statusCode: 404,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "Event not found" }),
+      };
+    }
+
+    // ❗ Prevent overbooking
+    if (quantity > eventData.seats_left) {
+      return {
+        statusCode: 400,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({
+          error: `Not enough tickets left. Only ${eventData.seats_left} available.`,
+        }),
+      };
+    }
 
     return {
       statusCode: 200,

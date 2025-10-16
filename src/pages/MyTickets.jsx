@@ -9,32 +9,25 @@ import { supabase } from "../supabaseClient.js";
 async function downloadTicket(event, user) {
   const doc = new jsPDF();
 
-  // Create QR data
   const qrData = `EVENT:${event.id}|USER:${user.email}|REF:${event.id}-${user.email}`;
-
-  // Generate QR code as DataURL
   const qrImage = await QRCode.toDataURL(qrData, { width: 128 });
 
-  // Title
   doc.setFontSize(18);
   doc.text("🎟 Event Ticket", 20, 20);
 
-  // Event info
   doc.setFontSize(12);
   doc.text(`Event: ${event.title}`, 20, 40);
   doc.text(`Date: ${new Date(event.date_time).toLocaleString()}`, 20, 50);
   if (event.location) doc.text(`Location: ${event.location}`, 20, 60);
   doc.text(`Attendee: ${user.email}`, 20, 70);
+  doc.text(`Tickets: ${event.quantity || 1}`, 20, 80);
 
-  // Add QR Code
-  doc.addImage(qrImage, "PNG", 20, 85, 50, 50);
+  doc.addImage(qrImage, "PNG", 20, 95, 50, 50);
 
-  // Footer
   doc.setFontSize(10);
-  doc.text("Thank you for your purchase!", 20, 150);
-  doc.text("Please show this QR code at the event entrance.", 20, 157);
+  doc.text("Thank you for your purchase!", 20, 155);
+  doc.text("Please show this QR code at the event entrance.", 20, 162);
 
-  // Save
   doc.save(`ticket_${event.title.replace(/\s+/g, "_")}.pdf`);
 }
 
@@ -45,17 +38,13 @@ const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : "");
 export default function MyTickets() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-
-  const [rows, setRows] = useState([]); // normalized events
+  const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-
-  // upcoming | past
   const [tab, setTab] = useState("upcoming");
 
-  // Load session
   useEffect(() => {
     let active = true;
     (async () => {
@@ -70,7 +59,7 @@ export default function MyTickets() {
     };
   }, []);
 
-  // Fetch a page of signups (joined with events)
+  // ✅ Updated: Fetch from payments, ensure `quantity` and `events` join are correct
   async function fetchPage(nextPage = 0, reset = false) {
     if (!user) return;
     setLoading(true);
@@ -88,11 +77,17 @@ export default function MyTickets() {
           quantity,
           created_at,
           events (
-            id, title, description, location, date_time, price, image_url, categories(name)
+            id,
+            title,
+            description,
+            location,
+            date_time,
+            price,
+            image_url,
+            categories(name)
           )
         `
       )
-
       .eq("user_email", user.email)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -103,16 +98,17 @@ export default function MyTickets() {
       return;
     }
 
+    // ✅ Fix: use r.events (plural), not r.event
     const normalized = (data || [])
-      .filter((r) => r.event)
+      .filter((r) => r.events)
       .map((r) => ({
-        id: r.event.id,
-        title: r.event.title,
-        date_time: r.event.date_time,
-        location: r.event.location,
-        description: r.event.description,
-        image_url: r.event.image_url,
-        category: r.event.categories?.name || null,
+        id: r.events.id,
+        title: r.events.title,
+        date_time: r.events.date_time,
+        location: r.events.location,
+        description: r.events.description,
+        image_url: r.events.image_url,
+        category: r.events.categories?.name || null,
         quantity: r.quantity || 1,
         amount: r.amount || 0,
       }));
@@ -123,15 +119,12 @@ export default function MyTickets() {
     setLoading(false);
   }
 
-  // Initial load when user is ready
   useEffect(() => {
     if (!user) return;
-    // reset state
     setRows([]);
     setPage(0);
     setHasMore(true);
     fetchPage(0, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const filtered = useMemo(() => {
@@ -148,23 +141,6 @@ export default function MyTickets() {
       });
   }, [rows, tab]);
 
-  async function cancelSignup(eventId) {
-    if (!user) return;
-    try {
-      const { error } = await supabase
-        .from("signups")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("event_id", eventId);
-      if (error) throw error;
-
-      // Remove locally
-      setRows((prev) => prev.filter((r) => r.id !== eventId));
-    } catch (e) {
-      alert("Could not cancel: " + (e?.message ?? e));
-    }
-  }
-
   if (!user) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-10">
@@ -177,7 +153,6 @@ export default function MyTickets() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">My Tickets</h1>
-
         <button
           onClick={() => navigate("/dashboard")}
           className="text-purple-600 hover:underline"
@@ -185,30 +160,6 @@ export default function MyTickets() {
           ← Back to Dashboard
         </button>
       </div>
-
-      {/* Tabs */}
-      {/* <div className="flex gap-2 mb-4">
-        <button
-          className={`px-3 py-1 rounded-full border ${
-            tab === "upcoming"
-              ? "bg-purple-600 text-white border-purple-600"
-              : "text-gray-700 hover:bg-gray-50"
-          }`}
-          onClick={() => setTab("upcoming")}
-        >
-          Upcoming
-        </button>
-        <button
-          className={`px-3 py-1 rounded-full border ${
-            tab === "past"
-              ? "bg-purple-600 text-white border-purple-600"
-              : "text-gray-700 hover:bg-gray-50"
-          }`}
-          onClick={() => setTab("past")}
-        >
-          Past
-        </button>
-      </div> */}
 
       {err && <p className="text-red-600 mb-3">{err}</p>}
 
@@ -261,7 +212,7 @@ export default function MyTickets() {
                   )}
                   <p className="text-sm text-gray-600">
                     🎟️ Tickets:{" "}
-                    <span className="font-semibold">{ev.quantity || 1}</span>
+                    <span className="font-semibold">{ev.quantity}</span>
                   </p>
                   <p className="text-sm text-gray-600">
                     💷 Total Paid:{" "}
@@ -281,7 +232,6 @@ export default function MyTickets() {
                         Add to Google Calendar
                       </a>
                     )}
-
                     <button
                       onClick={() => downloadTicket(ev, user)}
                       className="px-3 py-1 text-sm border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
@@ -296,9 +246,8 @@ export default function MyTickets() {
         </div>
       )}
 
-      {/* Pager */}
-      <div className="mt-8">
-        {hasMore && (
+      {hasMore && (
+        <div className="mt-8 text-center">
           <button
             disabled={loading}
             onClick={() => fetchPage(page)}
@@ -306,8 +255,8 @@ export default function MyTickets() {
           >
             {loading ? "Loading…" : "Load more"}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

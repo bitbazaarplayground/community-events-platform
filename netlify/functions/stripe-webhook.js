@@ -45,7 +45,7 @@ export const handler = async (event) => {
       const event_id = session.metadata?.event_id;
       const event_title = session.metadata?.event_title || "Untitled Event";
       const amount = (session.amount_total || 0) / 100;
-      const quantity = Number(session.metadata?.quantity) || 1; // ✅ NEW
+      const quantity = Number(session.metadata?.quantity) || 1;
 
       console.log("💰 Payment success:", {
         user_email,
@@ -60,26 +60,55 @@ export const handler = async (event) => {
         event_id,
         event_title,
         amount,
-        quantity, // ✅ NEW
+        quantity,
         status: "succeeded",
       });
 
       if (payError) console.error("❌ Error saving payment:", payError.message);
       else console.log("✅ Payment record inserted");
 
-      // 👥 Save attendee record (optional but keep it consistent)
+      // 👥 Save attendee record
       const { error: attError } = await supabase.from("attendees").insert({
         event_id,
         user_email,
         user_name: user_email.split("@")[0],
         paid_amount: amount,
-        tickets: quantity, // ✅ optional: track tickets in attendees too
+        tickets: quantity,
       });
 
       if (attError) {
         console.error("❌ Error saving attendee:", attError.message);
       } else {
         console.log("✅ Attendee record inserted");
+
+        // 🧮 Deduct purchased tickets from available seats
+        const { data: eventData, error: fetchError } = await supabase
+          .from("events")
+          .select("seats_left")
+          .eq("id", event_id)
+          .single();
+
+        if (fetchError) {
+          console.error("⚠️ Failed to fetch seats_left:", fetchError.message);
+        } else if (eventData) {
+          const newSeatsLeft = Math.max(eventData.seats_left - quantity, 0);
+
+          const { error: updateError } = await supabase
+            .from("events")
+            .update({ seats_left: newSeatsLeft })
+            .eq("id", event_id);
+
+          if (updateError) {
+            console.error(
+              "⚠️ Failed to update seats_left:",
+              updateError.message
+            );
+          } else {
+            console.log(
+              `✅ Seats updated for ${event_title}: ${newSeatsLeft} remaining`
+            );
+          }
+        }
 
         // 🔹 Send confirmation email with ticket
         try {

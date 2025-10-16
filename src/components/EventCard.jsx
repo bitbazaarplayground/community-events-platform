@@ -440,15 +440,22 @@ export default function EventCard({
               type="button"
               onClick={async () => {
                 setMsg("");
+
+                // ✅ Check if user is logged in
+                const { data } = await supabase.auth.getUser();
+                const user = data?.user;
+                if (!user) {
+                  alert("Please sign in to purchase tickets.");
+                  window.location.href = "/auth"; // adjust if your login route differs
+                  return;
+                }
+
+                // 💳 Paid event path
                 if (is_paid && price > 0) {
                   try {
                     setMsg("💳 Redirecting to payment...");
 
-                    const {
-                      data: { user },
-                    } = await supabase.auth.getUser();
-
-                    // 🧮 Ask for ticket quantity (simple, for now)
+                    // 🧮 Ask for ticket quantity (simple prompt)
                     const quantityStr = prompt(
                       "How many tickets would you like to buy?",
                       "1"
@@ -472,9 +479,9 @@ export default function EventCard({
                           eventId: id,
                           title: title || "Untitled Event",
                           price: Number(price) || 0,
-                          userEmail: user?.email || "guest@example.com",
+                          userEmail: user.email, // ✅ authenticated email only
                           eventDate: date || new Date().toISOString(),
-                          quantity, // ✅ new field
+                          quantity,
                         }),
                       }
                     );
@@ -486,9 +493,11 @@ export default function EventCard({
                       setMsg("⚠️ Payment failed to initialize.");
                     }
                   } catch (err) {
+                    console.error("Payment error:", err);
                     setMsg("⚠️ Payment error. Please try again later.");
                   }
                 } else {
+                  // 🆓 Free event path (still require login)
                   await handleSignUp();
                 }
               }}
