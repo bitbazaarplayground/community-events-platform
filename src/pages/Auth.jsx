@@ -21,8 +21,7 @@ export default function Auth({ onLogin }) {
         console.log("🟣 Starting signup for:", email);
         localStorage.setItem("pendingAdminCode", adminCode.trim());
 
-        const redirectUrl = `${window.location.origin}/recovery`;
-        console.log("🟣 Redirect URL:", redirectUrl);
+        const redirectUrl = `${window.location.origin}/auth/callback`;
 
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
