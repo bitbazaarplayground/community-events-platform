@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
+import AuthCallback from "./pages/AuthCallback.jsx";
 import { supabase } from "./supabaseClient.js";
 
 // ✅ Lazy load all pages
@@ -127,9 +128,17 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // Force clear local session
+      localStorage.clear();
+      sessionStorage.clear();
+
       setUser(null);
       setUserRole(null);
+
+      window.location.href = "/";
     } catch (error) {
       console.error("Error during logout:", error.message);
     }
@@ -250,6 +259,7 @@ export default function App() {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/recovery" element={<Recovery />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>
