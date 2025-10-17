@@ -101,7 +101,7 @@ export default function Navbar({ user, role, onLogout }) {
         ) : (
           <>
             <Link
-              to="/login"
+              to="/auth"
               className="px-4 py-2 bg-purple-600 text-white rounded-full shadow hover:bg-purple-800 transition"
             >
               Sign In
@@ -179,7 +179,7 @@ export default function Navbar({ user, role, onLogout }) {
           ) : (
             <>
               <Link
-                to="/login"
+                to="/auth"
                 className="block px-4 py-2 hover:bg-gray-100"
                 onClick={() => setMenuOpen(false)}
               >
