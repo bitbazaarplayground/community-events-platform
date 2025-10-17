@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
-
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import Auth from "./pages/Auth.jsx";
 import Browse from "./pages/Browse.jsx";
 import Cancel from "./pages/Cancel.jsx";
 import Home from "./pages/Home.jsx";
