@@ -18,6 +18,7 @@ import Recovery from "./pages/Recovery.jsx";
 import SavedEvents from "./pages/SavedEvents.jsx";
 import Success from "./pages/Success.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
+import VerifyTicket from "./pages/VerifyTicket.jsx";
 import About from "./pages/footerPages/About.jsx";
 import Contact from "./pages/footerPages/Contact.jsx";
 import PrivacyPolicy from "./pages/footerPages/PrivacyPolicy.jsx";
@@ -205,6 +206,8 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          {/* Verify */}
+          <Route path="/verify/:ticketId" element={<VerifyTicket />} />
 
           {/* Public routes */}
           <Route path="/success" element={<Success />} />
