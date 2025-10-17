@@ -213,8 +213,14 @@ export default function EventCard({
         onMouseLeave={handleMouseLeave}
       >
         <a
-          href={external_url}
-          target="_blank"
+          href={user ? external_url : "#"}
+          onClick={(e) => {
+            if (!user) {
+              e.preventDefault();
+              alert("Please sign in to buy tickets.");
+            }
+          }}
+          target={user ? "_blank" : "_self"}
           rel="noreferrer"
           className="inline-block w-full text-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition relative z-10"
         >
@@ -232,6 +238,12 @@ export default function EventCard({
               details: external_url || "",
               location: location || "",
             })}
+            onClick={(e) => {
+              if (!user) {
+                e.preventDefault();
+                alert("Please sign in to add to calendar.");
+              }
+            }}
             target="_blank"
             rel="noreferrer"
             className="absolute bottom-full mb-2 px-3 py-1 text-xs bg-white border border-blue-200 rounded-md text-blue-600 shadow-md opacity-100 transform translate-y-0 transition-all duration-700 ease-out hover:bg-blue-50 flex items-center justify-center gap-1.5"
