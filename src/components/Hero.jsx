@@ -24,6 +24,7 @@ export default function Hero({ onSearch }) {
           <img
             src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=500&q=80"
             alt="Excited person"
+            loading="lazy"
             className="rounded-full w-72 h-72 object-cover shadow-lg"
           />
         </div>

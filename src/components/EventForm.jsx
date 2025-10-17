@@ -1,4 +1,5 @@
 // src/components/EventForm.jsx
+import imageCompression from "browser-image-compression";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient.js";
 
@@ -9,8 +10,9 @@ export default function EventForm({ user, onEventCreated }) {
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("12:30");
-  const [isPaid, setIsPaid] = useState(false); // 🆕 toggle for paid/free
+  const [isPaid, setIsPaid] = useState(false);
   const [price, setPrice] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
 
   const [seats, setSeats] = useState("");
 
@@ -77,19 +79,43 @@ export default function EventForm({ user, onEventCreated }) {
     if (imageFile) {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("event-images")
-        .upload(fileName, imageFile);
-      if (uploadError) {
-        console.error("Image upload error:", uploadError.message);
+      try {
+        setStatusMsg("🧠 Compressing image... please wait.");
+
+        // 🧠 Compress image before upload
+        const compressedFile = await imageCompression(imageFile, {
+          maxSizeMB: 1, // Target size: ~1MB or less
+          maxWidthOrHeight: 1920, // Resize large images to HD resolution
+          useWebWorker: true, // Perform compression in a background thread
+        });
+
+        setStatusMsg("📤 Uploading image...");
+
+        const { error: uploadError } = await supabase.storage
+          .from("event-images")
+          .upload(fileName, compressedFile);
+
+        if (uploadError) {
+          console.error("Image upload error:", uploadError.message);
+          setLoading(false);
+          setErrorMsg("Failed to upload image.");
+          setStatusMsg("");
+          return;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from("event-images")
+          .getPublicUrl(fileName);
+        image_url = publicUrlData?.publicUrl || null;
+
+        setStatusMsg("✅ Image uploaded successfully!");
+      } catch (err) {
+        console.error("Compression or upload error:", err);
+        setErrorMsg("Failed to process or upload image.");
+        setStatusMsg("");
         setLoading(false);
-        setErrorMsg("Failed to upload image.");
         return;
       }
-      const { data: publicUrlData } = supabase.storage
-        .from("event-images")
-        .getPublicUrl(fileName);
-      image_url = publicUrlData?.publicUrl || null;
     } else if (remoteImageUrl) {
       image_url = remoteImageUrl;
     }
@@ -301,12 +327,17 @@ export default function EventForm({ user, onEventCreated }) {
           />
         </div>
       )}
+      {statusMsg && (
+        <p className="text-sm text-gray-600 italic mb-2 text-center">
+          {statusMsg}
+        </p>
+      )}
 
       {/* Submit */}
       <button
         type="submit"
-        className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
-        disabled={loading}
+        className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition disabled:opacity-60"
+        disabled={loading || !!statusMsg.includes("Compressing")}
       >
         {loading ? "Saving..." : "Save Event"}
       </button>

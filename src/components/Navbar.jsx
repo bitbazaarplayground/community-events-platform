@@ -1,8 +1,7 @@
 // src/components/Navbar.jsx
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-
-import { useEffect, useRef } from "react";
+import { preloadRoute } from "../utils/preloadRoutes.js"; // 👈 NEW: preload helper
 
 export default function Navbar({ user, role, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -22,10 +21,11 @@ export default function Navbar({ user, role, onLogout }) {
   }, []);
 
   return (
-    <header className="flex justify-between items-center py-4 px-6 bg-white shadow-sm font-inter">
+    <header className="flex justify-between items-center py-4 px-6 bg-white shadow-sm font-inter relative">
       {/* Logo / Brand */}
       <Link
         to="/"
+        onMouseEnter={() => preloadRoute("Home")}
         className="text-2xl font-extrabold tracking-tight text-gray-900"
       >
         EVENTS
@@ -39,8 +39,10 @@ export default function Navbar({ user, role, onLogout }) {
         >
           About
         </Link>
+
         <Link
           to="/browse"
+          onMouseEnter={() => preloadRoute("Browse")}
           className="text-gray-700 hover:text-purple-600 transition"
         >
           Browse
@@ -60,6 +62,7 @@ export default function Navbar({ user, role, onLogout }) {
               <div className="absolute right-0 top-full mt-2 bg-white border rounded shadow-lg w-48 z-50">
                 <Link
                   to="/dashboard"
+                  onMouseEnter={() => preloadRoute("UserDashboard")}
                   className="block px-4 py-2 hover:bg-gray-100"
                   onClick={() => setMenuOpen(false)}
                 >
@@ -71,6 +74,7 @@ export default function Navbar({ user, role, onLogout }) {
                   <>
                     <Link
                       to="/post"
+                      onMouseEnter={() => preloadRoute("PostEvent")}
                       className="block px-4 py-2 hover:bg-gray-100"
                       onClick={() => setMenuOpen(false)}
                     >
@@ -78,6 +82,7 @@ export default function Navbar({ user, role, onLogout }) {
                     </Link>
                     <Link
                       to="/myevents"
+                      onMouseEnter={() => preloadRoute("MyEvents")}
                       className="block px-4 py-2 hover:bg-gray-100"
                       onClick={() => setMenuOpen(false)}
                     >
@@ -99,14 +104,13 @@ export default function Navbar({ user, role, onLogout }) {
             )}
           </div>
         ) : (
-          <>
-            <Link
-              to="/auth"
-              className="px-4 py-2 bg-purple-600 text-white rounded-full shadow hover:bg-purple-800 transition"
-            >
-              Sign In
-            </Link>
-          </>
+          <Link
+            to="/auth"
+            onMouseEnter={() => preloadRoute("Auth")}
+            className="px-4 py-2 bg-purple-600 text-white rounded-full shadow hover:bg-purple-800 transition"
+          >
+            Sign In
+          </Link>
         )}
       </nav>
 
@@ -130,8 +134,10 @@ export default function Navbar({ user, role, onLogout }) {
           >
             About
           </Link>
+
           <Link
             to="/browse"
+            onMouseEnter={() => preloadRoute("Browse")}
             className="block px-4 py-2 hover:bg-gray-100"
             onClick={() => setMenuOpen(false)}
           >
@@ -142,6 +148,7 @@ export default function Navbar({ user, role, onLogout }) {
             <>
               <Link
                 to="/dashboard"
+                onMouseEnter={() => preloadRoute("UserDashboard")}
                 className="block px-4 py-2 hover:bg-gray-100"
                 onClick={() => setMenuOpen(false)}
               >
@@ -152,6 +159,7 @@ export default function Navbar({ user, role, onLogout }) {
                 <>
                   <Link
                     to="/post"
+                    onMouseEnter={() => preloadRoute("PostEvent")}
                     className="block px-4 py-2 hover:bg-gray-100"
                     onClick={() => setMenuOpen(false)}
                   >
@@ -159,6 +167,7 @@ export default function Navbar({ user, role, onLogout }) {
                   </Link>
                   <Link
                     to="/myevents"
+                    onMouseEnter={() => preloadRoute("MyEvents")}
                     className="block px-4 py-2 hover:bg-gray-100"
                     onClick={() => setMenuOpen(false)}
                   >
@@ -166,6 +175,7 @@ export default function Navbar({ user, role, onLogout }) {
                   </Link>
                 </>
               )}
+
               <button
                 className="w-full text-left px-4 py-2 hover:bg-gray-100"
                 onClick={() => {
@@ -177,15 +187,14 @@ export default function Navbar({ user, role, onLogout }) {
               </button>
             </>
           ) : (
-            <>
-              <Link
-                to="/auth"
-                className="block px-4 py-2 hover:bg-gray-100"
-                onClick={() => setMenuOpen(false)}
-              >
-                Sign In
-              </Link>
-            </>
+            <Link
+              to="/auth"
+              onMouseEnter={() => preloadRoute("Auth")}
+              className="block px-4 py-2 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              Sign In
+            </Link>
           )}
         </div>
       )}

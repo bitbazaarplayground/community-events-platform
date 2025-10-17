@@ -392,6 +392,7 @@ export default function EventCard({
                 alt={
                   creator?.display_name || creator?.first_name || "Organizer"
                 }
+                loading="lazy"
                 className="w-5 h-5 rounded-full object-cover"
               />
             )}
