@@ -1,4 +1,7 @@
+// src/pages/Recovery.jsx
+
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 
 export default function Recovery() {
@@ -7,32 +10,42 @@ export default function Recovery() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
+  const navigate = useNavigate();
 
-  // ✅ STEP 1: Exchange the access token from URL for a session
+  // ✅ STEP 1: Exchange the URL hash for a valid session
   useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash.includes("access_token")) return;
+    const verifyAndSetSession = async () => {
+      const hash = window.location.hash;
+      if (!hash) {
+        setMsg("⚠️ Invalid or missing token.");
+        return;
+      }
 
-    const params = new URLSearchParams(hash.replace("#", ""));
-    const access_token = params.get("access_token");
-    const refresh_token = params.get("refresh_token");
-
-    if (!access_token) return;
-
-    (async () => {
       try {
-        const { error } = await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
+        const { data, error } = await supabase.auth.exchangeCodeForSession(
+          hash
+        );
         if (error) throw error;
+
+        const type = new URLSearchParams(hash.replace("#", "")).get("type");
+
+        // 🟢 Handle signup verification redirect
+        if (type === "signup" || type === "magiclink") {
+          setMsg("Email verified successfully! Redirecting...");
+          setTimeout(() => navigate("/"), 1500);
+          return;
+        }
+
+        // 🟢 Handle password reset
         setSessionRestored(true);
       } catch (err) {
         console.error("❌ Session exchange error:", err.message);
-        setMsg("⚠️ Session invalid or expired. Please request a new link.");
+        setMsg("⚠️ Link invalid or expired. Please request a new one.");
       }
-    })();
-  }, []);
+    };
+
+    verifyAndSetSession();
+  }, [navigate]);
 
   // ✅ Password validation
   const validatePassword = (pwd) => {
@@ -41,7 +54,7 @@ export default function Recovery() {
     return null;
   };
 
-  // ✅ STEP 2: Update password
+  // ✅ STEP 2: Handle password reset
   const handleReset = async () => {
     const validation = validatePassword(password);
     if (validation) return setMsg(`⚠️ ${validation}`);
@@ -54,14 +67,14 @@ export default function Recovery() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
-      setMsg("✅ Your password has been updated successfully.");
-
-      // 🔒 log out and redirect to login
+      setMsg("✅ Your password has been updated successfully. Redirecting...");
       await supabase.auth.signOut();
+
       setTimeout(() => {
-        window.location.href = "/#/";
+        navigate("/"); // Redirect home after successful reset
       }, 2000);
     } catch (err) {
+      console.error("❌ Reset error:", err.message);
       setMsg("❌ Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -71,21 +84,32 @@ export default function Recovery() {
   // ✅ STEP 3: UI
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
+      <div className="bg-white p-8 rounded shadow-md w-full max-w-md text-center">
         {!sessionRestored ? (
           <>
-            <h2 className="text-xl font-semibold text-center mb-4">
-              Verifying your reset link...
+            <h2 className="text-xl font-semibold mb-4">
+              Verifying your link...
             </h2>
-            <p className="text-gray-600 text-center text-sm">
-              Please wait a moment.
+            <p className="text-gray-600 mb-4">
+              Please wait a moment while we verify your email or recovery link.
             </p>
+            {msg && (
+              <p
+                className={`text-sm ${
+                  msg.startsWith("✅")
+                    ? "text-green-600"
+                    : msg.startsWith("⚠️")
+                    ? "text-yellow-600"
+                    : "text-red-600"
+                }`}
+              >
+                {msg}
+              </p>
+            )}
           </>
         ) : (
           <>
-            <h2 className="text-xl font-semibold mb-6 text-center">
-              Reset Your Password
-            </h2>
+            <h2 className="text-xl font-semibold mb-6">Reset Your Password</h2>
 
             <input
               type="password"

@@ -1,28 +1,34 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
-import Auth from "./pages/Auth.jsx";
-import Browse from "./pages/Browse.jsx";
-import Cancel from "./pages/Cancel.jsx";
-import Home from "./pages/Home.jsx";
-import MyEvents from "./pages/MyEvents.jsx";
-import MyTickets from "./pages/MyTickets.jsx";
-import PastEvents from "./pages/PastEvents.jsx";
-import PostEvent from "./pages/PostEvent.jsx";
-import Profile from "./pages/Profile.jsx";
-import Recovery from "./pages/Recovery.jsx";
-import SavedEvents from "./pages/SavedEvents.jsx";
-import Success from "./pages/Success.jsx";
-import UserDashboard from "./pages/UserDashboard.jsx";
-import VerifyTicket from "./pages/VerifyTicket.jsx";
-import About from "./pages/footerPages/About.jsx";
-import Contact from "./pages/footerPages/Contact.jsx";
-import PrivacyPolicy from "./pages/footerPages/PrivacyPolicy.jsx";
-import TermsOfService from "./pages/footerPages/TermsOfService.jsx";
 import { supabase } from "./supabaseClient.js";
+
+// ✅ Lazy load all pages
+const Auth = lazy(() => import("./pages/Auth.jsx"));
+const Browse = lazy(() => import("./pages/Browse.jsx"));
+const Cancel = lazy(() => import("./pages/Cancel.jsx"));
+const Home = lazy(() => import("./pages/Home.jsx"));
+const MyEvents = lazy(() => import("./pages/MyEvents.jsx"));
+const MyTickets = lazy(() => import("./pages/MyTickets.jsx"));
+const PastEvents = lazy(() => import("./pages/PastEvents.jsx"));
+const PostEvent = lazy(() => import("./pages/PostEvent.jsx"));
+const Profile = lazy(() => import("./pages/Profile.jsx"));
+const Recovery = lazy(() => import("./pages/Recovery.jsx"));
+const SavedEvents = lazy(() => import("./pages/SavedEvents.jsx"));
+const Success = lazy(() => import("./pages/Success.jsx"));
+const UserDashboard = lazy(() => import("./pages/UserDashboard.jsx"));
+const VerifyTicket = lazy(() => import("./pages/VerifyTicket.jsx"));
+const About = lazy(() => import("./pages/footerPages/About.jsx"));
+const Contact = lazy(() => import("./pages/footerPages/Contact.jsx"));
+const PrivacyPolicy = lazy(() =>
+  import("./pages/footerPages/PrivacyPolicy.jsx")
+);
+const TermsOfService = lazy(() =>
+  import("./pages/footerPages/TermsOfService.jsx")
+);
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -52,8 +58,12 @@ export default function App() {
       setLoading(false); // ✅ only after we’ve checked Supabase
     };
 
-    // Initial check
-    fetchUserAndRole();
+    // ✅ Defer the initial session check to avoid blocking first render
+    if ("requestIdleCallback" in window) {
+      requestIdleCallback(fetchUserAndRole);
+    } else {
+      setTimeout(fetchUserAndRole, 200);
+    }
 
     // Listen for auth changes (sign in / out)
     const { data: listener } = supabase.auth.onAuthStateChange(
@@ -99,6 +109,22 @@ export default function App() {
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
+  // preload routes
+  useEffect(() => {
+    if (userRole === "admin") {
+      // Preload admin-related pages
+      import("./pages/PostEvent.jsx");
+      import("./pages/MyEvents.jsx");
+    }
+
+    if (userRole === "user") {
+      // Preload user-related pages
+      import("./pages/UserDashboard.jsx");
+      import("./pages/MyTickets.jsx");
+      import("./pages/SavedEvents.jsx");
+    }
+  }, [userRole]);
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -124,97 +150,109 @@ export default function App() {
       <Navbar user={user} role={userRole} onLogout={handleLogout} />
 
       <main className="p-4">
-        <Routes>
-          <Route path="/" element={<Home user={user} role={userRole} />} />
-          <Route
-            path="/auth"
-            element={
-              user ? <Navigate to="/dashboard" /> : <Auth onLogin={setUser} />
-            }
-          />
+        {/* ✅ Suspense ensures lazy-loaded pages show fallback while loading */}
+        <Suspense fallback={<div className="text-center mt-8">Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<Home user={user} role={userRole} />} />
+            <Route
+              path="/auth"
+              element={
+                user ? <Navigate to="/dashboard" /> : <Auth onLogin={setUser} />
+              }
+            />
 
-          <Route
-            path="/browse"
-            element={<Browse user={user} role={userRole} />}
-          />
+            <Route
+              path="/browse"
+              element={<Browse user={user} role={userRole} />}
+            />
 
-          {/* Admin-only routes */}
-          <Route
-            path="/post"
-            element={
-              <ProtectedRoute user={user} role={userRole} requiredRole="admin">
-                <PostEvent user={user} />
-              </ProtectedRoute>
-            }
-          />
+            {/* Admin-only routes */}
+            <Route
+              path="/post"
+              element={
+                <ProtectedRoute
+                  user={user}
+                  role={userRole}
+                  requiredRole="admin"
+                >
+                  <PostEvent user={user} />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/myevents"
-            element={
-              <ProtectedRoute user={user} role={userRole} requiredRole="admin">
-                <MyEvents user={user} />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/myevents"
+              element={
+                <ProtectedRoute
+                  user={user}
+                  role={userRole}
+                  requiredRole="admin"
+                >
+                  <MyEvents user={user} />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Regular user routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute user={user} role={userRole}>
-                <UserDashboard user={user} />
-              </ProtectedRoute>
-            }
-          />
+            {/* Regular user routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute user={user} role={userRole}>
+                  <UserDashboard user={user} />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/profile/edit"
-            element={
-              <ProtectedRoute user={user} role={userRole}>
-                <Profile user={user} />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute user={user} role={userRole}>
+                  <Profile user={user} />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/me/events"
-            element={
-              <ProtectedRoute user={user} role={userRole}>
-                <MyTickets />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/me/events"
+              element={
+                <ProtectedRoute user={user} role={userRole}>
+                  <MyTickets />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/me/saved"
-            element={
-              <ProtectedRoute user={user} role={userRole}>
-                <SavedEvents />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/me/saved"
+              element={
+                <ProtectedRoute user={user} role={userRole}>
+                  <SavedEvents />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/me/past"
-            element={
-              <ProtectedRoute user={user} role={userRole}>
-                <PastEvents />
-              </ProtectedRoute>
-            }
-          />
-          {/* Verify */}
-          <Route path="/verify/:ticketId" element={<VerifyTicket />} />
+            <Route
+              path="/me/past"
+              element={
+                <ProtectedRoute user={user} role={userRole}>
+                  <PastEvents />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Public routes */}
-          <Route path="/success" element={<Success />} />
-          <Route path="/cancel" element={<Cancel />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/recovery" element={<Recovery />} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+            {/* Verify */}
+            <Route path="/verify/:ticketId" element={<VerifyTicket />} />
+
+            {/* Public routes */}
+            <Route path="/success" element={<Success />} />
+            <Route path="/cancel" element={<Cancel />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/recovery" element={<Recovery />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <Footer />
