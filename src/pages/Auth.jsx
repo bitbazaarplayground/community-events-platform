@@ -18,32 +18,46 @@ export default function Auth({ onLogin }) {
 
     try {
       if (isSignUp) {
-        // 🧩 store the code temporarily so it's available after redirect
+        console.log("🟣 Starting signup for:", email);
         localStorage.setItem("pendingAdminCode", adminCode.trim());
+
+        const redirectUrl = `${window.location.origin}/recovery`;
+        console.log("🟣 Redirect URL:", redirectUrl);
 
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/recovery`,
+            emailRedirectTo: redirectUrl,
           },
         });
 
-        if (signUpError) throw signUpError;
+        console.log("🟣 Signup response:", data);
+        if (signUpError) {
+          console.error("❌ Supabase signup error:", signUpError);
+          throw signUpError;
+        }
 
+        console.log("✅ Signup success, awaiting confirmation email");
         setError(
           "✅ Sign-up successful. Please check your email to confirm your account."
         );
       } else {
-        // 🧩 normal login flow
+        console.log("🟢 Logging in:", email);
         const { data, error: signInError } =
           await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
+        if (signInError) {
+          console.error("❌ Login error:", signInError);
+          throw signInError;
+        }
+        console.log("✅ Login success for:", email);
         onLogin(data.user);
       }
     } catch (err) {
+      console.error("🔥 Auth process failed:", err);
       setError(err.message || "Unexpected error occurred.");
     } finally {
+      console.log("🧹 Auth process finished.");
       setLoading(false);
     }
   };
