@@ -1,11 +1,16 @@
 // netlify/functions/create-checkout-session.js
 
+import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const SITE_URL =
   process.env.SITE_URL || "https://communityeventsplatform.netlify.app";
 
+const supabase = createClient(
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 export async function handler(event) {
   // ✅ Handle CORS preflight
   if (event.httpMethod === "OPTIONS") {
@@ -49,11 +54,6 @@ export async function handler(event) {
         body: JSON.stringify({ error: "Invalid event data" }),
       };
     }
-    import { createClient } from "@supabase/supabase-js";
-    const supabase = createClient(
-      process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
 
     // ✅ Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
