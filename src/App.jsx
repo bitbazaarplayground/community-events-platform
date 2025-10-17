@@ -76,7 +76,7 @@ export default function App() {
           if (!profile) {
             await supabase
               .from("user_profiles")
-              .insert([{ id: user.id, email: user.email, role }]);
+              .upsert([{ id: user.id, email: user.email, role }]);
             console.log(`✅ Created ${user.email} with role ${role}`);
           }
 

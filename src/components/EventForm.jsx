@@ -230,19 +230,6 @@ export default function EventForm({ user, onEventCreated }) {
         />
       )}
 
-      {/* Show price input only if paid */}
-      {/* {isPaid && (
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="Enter price (£)"
-          className="w-full border px-4 py-2 rounded"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-      )} */}
-
       {/* Seats */}
       <input
         type="number"
@@ -256,15 +243,33 @@ export default function EventForm({ user, onEventCreated }) {
       <div className="grid sm:grid-cols-2 gap-4 items-start">
         <div>
           <label className="block text-sm font-medium mb-1">Upload Image</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="w-full"
-            onChange={(e) => {
-              setImageFile(e.target.files[0]);
-              if (remoteImageUrl) setRemoteImageUrl("");
-            }}
-          />
+          <label className="block text-sm font-medium mb-1">Upload Image</label>
+
+          <label
+            htmlFor="file-upload"
+            className="flex items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg py-4 cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition"
+          >
+            <span className="text-sm text-gray-700 hover:text-purple-600 transition">
+              📁 Click to upload or drag & drop
+            </span>
+            <input
+              id="file-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                setImageFile(e.target.files[0]);
+                if (remoteImageUrl) setRemoteImageUrl("");
+              }}
+            />
+          </label>
+
+          {imageFile && (
+            <p className="text-xs text-gray-500 mt-1 italic">
+              Selected file: {imageFile.name}
+            </p>
+          )}
+
           <p className="text-xs text-gray-500 mt-1">
             If you upload a file, it will override any image URL.
           </p>
