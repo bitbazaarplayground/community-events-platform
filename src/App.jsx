@@ -5,7 +5,6 @@ import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import Auth from "./pages/Auth.jsx";
 import Browse from "./pages/Browse.jsx";
 import Cancel from "./pages/Cancel.jsx";
 import Home from "./pages/Home.jsx";
@@ -126,14 +125,11 @@ export default function App() {
 
       <main className="p-4">
         <Routes>
+          <Route path="/" element={<Home user={user} role={userRole} />} />
           <Route
-            path="/"
+            path="/auth"
             element={
-              user ? (
-                <Home user={user} role={userRole} />
-              ) : (
-                <Auth onLogin={setUser} />
-              )
+              user ? <Navigate to="/dashboard" /> : <Auth onLogin={setUser} />
             }
           />
 
