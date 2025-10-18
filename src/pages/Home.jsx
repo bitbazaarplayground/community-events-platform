@@ -21,7 +21,7 @@ export default function Home() {
     let sb = supabase
       .from("events")
       .select(
-        "id, title, description, location, date_time, price, is_paid, seats_left, created_by, image_url, category_id, categories(name)"
+        "id, title, description, location, date_time, price, is_paid, seats_left, created_by, image_url, category_id, extra_dates, categories(name)"
       )
 
       .order("date_time", { ascending: true })

@@ -7,15 +7,16 @@ import { supabase } from "../supabaseClient.js";
 export default function FancySearchBar({
   onSearch,
   variant = "home",
-  initialQuery = "", // prefill for Home
-  initialFilters = {}, // prefill for Browse: { event, location, category }
+  initialQuery = "",
+  initialFilters = {},
 }) {
   const phrases = ["events...", "location...", "event...", "categories..."];
 
   // ----- Home state -----
   const [inputValue, setInputValue] = useState(initialQuery);
-  const [userTyped, setUserTyped] = useState(initialQuery.length > 0); // stops auto animation if user typed/prefilled
-  const inputTouchedRef = useRef(false); // ✅ don't fire onSearch on mount
+  const [userTyped, setUserTyped] = useState(initialQuery.length > 0);
+  const inputTouchedRef = useRef(false);
+  const lastQueryRef = useRef("");
 
   // Typing animation
   const [text, setText] = useState("");
@@ -33,12 +34,13 @@ export default function FancySearchBar({
     initialFilters.category || ""
   );
   const [categories, setCategories] = useState([]);
+  const lastBrowseQueryRef = useRef({ event: "", location: "", category: "" });
 
   const filtersTouchedRef = useRef(false);
 
   const basePrefix = index === 0 ? "Search " : "Search by ";
 
-  // Keep Home state in sync if initialQuery changes (e.g., when coming back)
+  // Keep Home state in sync
   useEffect(() => {
     setInputValue(initialQuery);
     setUserTyped(initialQuery.length > 0);
@@ -86,20 +88,50 @@ export default function FancySearchBar({
     return () => clearInterval(blinkInterval);
   }, [userTyped]);
 
-  // ----- Debounced search -----
+  // ----- Debounced search: HOME -----
   useEffect(() => {
+    if (variant !== "home") return;
     const handler = setTimeout(() => {
-      if (variant === "home") {
-        if (inputTouchedRef.current && inputValue.trim().length > 0) {
-          onSearch?.(inputValue.trim());
-        }
-      } else {
-        if (filtersTouchedRef.current) {
-          const selected = categories.find((c) => c.id === categoryQuery);
+      const trimmed = inputValue.trim();
+
+      if (
+        inputTouchedRef.current &&
+        trimmed.length > 0 &&
+        trimmed !== lastQueryRef.current
+      ) {
+        lastQueryRef.current = trimmed;
+        onSearch?.(trimmed);
+      }
+    }, 700);
+    return () => clearTimeout(handler);
+  }, [variant, inputValue]);
+
+  // ----- Debounced search: BROWSE -----
+  useEffect(() => {
+    if (variant !== "browse") return;
+
+    const handler = setTimeout(() => {
+      if (filtersTouchedRef.current) {
+        const selected = categories.find((c) => c.id === categoryQuery);
+
+        const currentQuery = {
+          event: eventQuery.trim(),
+          location: locationQuery.trim(),
+          category: categoryQuery,
+        };
+
+        const last = lastBrowseQueryRef.current;
+        const changed =
+          currentQuery.event !== last.event ||
+          currentQuery.location !== last.location ||
+          currentQuery.category !== last.category;
+
+        if (changed) {
+          lastBrowseQueryRef.current = currentQuery;
           onSearch?.({
-            event: eventQuery,
-            location: locationQuery,
-            category: categoryQuery,
+            event: currentQuery.event,
+            location: currentQuery.location,
+            category: currentQuery.category,
             categoryLabel: selected?.name || "",
           });
         }
@@ -107,7 +139,7 @@ export default function FancySearchBar({
     }, 700);
 
     return () => clearTimeout(handler);
-  }, [eventQuery, locationQuery, categoryQuery]);
+  }, [variant, eventQuery, locationQuery, categoryQuery, categories]);
 
   // ----- Instant search on Enter -----
   const handleKeyDown = (e) => {
@@ -246,6 +278,7 @@ export default function FancySearchBar({
 
           if (value.trim().length === 0) {
             onSearch?.("");
+            lastQueryRef.current = "";
           }
         }}
         onKeyDown={handleKeyDown}
