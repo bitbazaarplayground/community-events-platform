@@ -103,7 +103,28 @@ export default function EventCard({
     };
   }, [created_by, external_source]);
 
-  // const isFree = is_paid === false || Number(price) === 0;
+  useEffect(() => {
+    const handleDateUpdate = (e) => {
+      if (e.detail.id === id) {
+        // Just update local date
+        setMsg("");
+        setShowDates(false);
+        setHasInteracted(true);
+        // re-render card date
+        const newDate = e.detail.newDate;
+        document.startViewTransition?.(() => {
+          // small animation if browser supports it
+          window.requestAnimationFrame(() => {
+            const dateEl = document.querySelector(`#date-${id}`);
+            if (dateEl) dateEl.textContent = new Date(newDate).toLocaleString();
+          });
+        }) || setTimeout(() => {}, 0);
+      }
+    };
+    window.addEventListener("updateEventDate", handleDateUpdate);
+    return () =>
+      window.removeEventListener("updateEventDate", handleDateUpdate);
+  }, [id]);
 
   // === Mask email for privacy ===
   function maskEmail(email = "") {
@@ -297,10 +318,11 @@ export default function EventCard({
           {title}
         </h3>
         {date && (
-          <p className="text-sm text-gray-600 mb-1">
+          <p id={`date-${id}`} className="text-sm text-gray-600 mb-1">
             {new Date(date).toLocaleString()}
           </p>
         )}
+
         {/* Unified "+X more dates" for both Ticketmaster and local events */}
         {((external_source === "ticketmaster" && extraCount > 0) ||
           (Array.isArray(extra_dates) && extra_dates.length > 0)) && (
@@ -341,23 +363,51 @@ export default function EventCard({
                   : extra_dates
                 )?.map((d, idx) => (
                   <li key={idx} className="ml-2">
-                    <a
-                      href={external_url || "#"}
-                      target={external_url ? "_blank" : "_self"}
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline transition"
-                    >
-                      <span role="img" aria-label="calendar">
-                        📅
-                      </span>
-                      <span>
-                        {new Date(d).toLocaleDateString()}{" "}
-                        {new Date(d).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </a>
+                    {external_source === "ticketmaster" ? (
+                      <a
+                        href={external_url || "#"}
+                        target={external_url ? "_blank" : "_self"}
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline transition"
+                      >
+                        <span role="img" aria-label="calendar">
+                          📅
+                        </span>
+                        <span>
+                          {new Date(d).toLocaleDateString()}{" "}
+                          {new Date(d).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowDates(false);
+                          setMsg("");
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                          const newDate = new Date(d).toISOString();
+                          window.dispatchEvent(
+                            new CustomEvent("updateEventDate", {
+                              detail: { id, newDate },
+                            })
+                          );
+                        }}
+                        className="flex items-center gap-1 text-purple-600 hover:text-purple-800 hover:underline transition"
+                      >
+                        <span role="img" aria-label="calendar">
+                          📅
+                        </span>
+                        <span>
+                          {new Date(d).toLocaleDateString()}{" "}
+                          {new Date(d).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

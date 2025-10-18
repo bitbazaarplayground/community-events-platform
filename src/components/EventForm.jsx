@@ -1,6 +1,7 @@
 // src/components/EventForm.jsx
 import imageCompression from "browser-image-compression";
 import { useEffect, useMemo, useState } from "react";
+import LocationAutocomplete from "../components/LocationAutocomplete.jsx";
 import { supabase } from "../supabaseClient.js";
 
 export default function EventForm({ user, onEventCreated }) {
@@ -191,14 +192,18 @@ export default function EventForm({ user, onEventCreated }) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Location
+      </label>
+      <LocationAutocomplete value={location} onChange={setLocation} />
 
-      <input
+      {/* <input
         type="text"
         placeholder="Location"
         className="w-full border px-4 py-2 rounded"
         value={location}
         onChange={(e) => setLocation(e.target.value)}
-      />
+      /> */}
 
       <div className="flex gap-4">
         <input

@@ -95,7 +95,24 @@ export default function Browse() {
       }
 
       const localData = localRes.data || [];
-      const local = localData.map((row) => ({
+
+      // First, group by title + location (same as TM)
+      const groupedLocal = {};
+      for (const ev of localData) {
+        const key = `${ev.title}::${ev.location}`;
+        const date = ev.date_time;
+
+        if (!groupedLocal[key]) {
+          groupedLocal[key] = { ...ev, extra_dates: [] };
+        } else {
+          groupedLocal[key].extra_dates.push(date);
+          const currentDate = new Date(groupedLocal[key].date_time);
+          if (new Date(date) < currentDate) groupedLocal[key].date_time = date;
+        }
+      }
+
+      // Then map to the final shape for rendering
+      const local = Object.values(groupedLocal).map((row) => ({
         id: row.id,
         title: row.title,
         date_time: row.date_time,
@@ -110,7 +127,7 @@ export default function Browse() {
         external_source: null,
         external_url: null,
         external_organizer: null,
-        extra_dates: row.extra_dates || [],
+        extra_dates: row.extra_dates,
       }));
 
       // === 2️⃣ Ticketmaster events ===
