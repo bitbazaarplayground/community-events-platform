@@ -1,5 +1,5 @@
 // src/components/EventForm.jsx
-import imageCompression from "browser-image-compression";
+
 import { useEffect, useMemo, useState } from "react";
 import LocationAutocomplete from "../components/LocationAutocomplete.jsx";
 import { supabase } from "../supabaseClient.js";
@@ -81,20 +81,14 @@ export default function EventForm({ user, onEventCreated }) {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
       try {
-        setStatusMsg("🧠 Compressing image... please wait.");
-
-        // 🧠 Compress image before upload
-        const compressedFile = await imageCompression(imageFile, {
-          maxSizeMB: 1, // Target size: ~1MB or less
-          maxWidthOrHeight: 1920, // Resize large images to HD resolution
-          useWebWorker: true, // Perform compression in a background thread
-        });
-
         setStatusMsg("📤 Uploading image...");
 
         const { error: uploadError } = await supabase.storage
           .from("event-images")
-          .upload(fileName, compressedFile);
+          .upload(fileName, imageFile, {
+            cacheControl: "3600",
+            upsert: true,
+          });
 
         if (uploadError) {
           console.error("Image upload error:", uploadError.message);
@@ -108,8 +102,6 @@ export default function EventForm({ user, onEventCreated }) {
           .from("event-images")
           .getPublicUrl(fileName);
         image_url = publicUrlData?.publicUrl || null;
-
-        setStatusMsg("✅ Image uploaded successfully!");
       } catch (err) {
         console.error("Compression or upload error:", err);
         setErrorMsg("Failed to process or upload image.");

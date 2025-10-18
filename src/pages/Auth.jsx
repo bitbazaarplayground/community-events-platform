@@ -42,15 +42,13 @@ export default function Auth({ onLogin }) {
           "✅ Sign-up successful. Please check your email to confirm your account."
         );
       } else {
-        console.log("🟢 Logging in:", email);
         const { data, error: signInError } =
           await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) {
-          console.error("❌ Login error:", signInError);
-          throw signInError;
-        }
-        console.log("✅ Login success for:", email);
-        onLogin(data.user);
+
+        if (signInError) throw signInError;
+
+        // console.log("✅ Login success:", data.user);
+        window.location.href = "/";
       }
     } catch (err) {
       console.error("🔥 Auth process failed:", err);
