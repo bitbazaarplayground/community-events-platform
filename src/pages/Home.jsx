@@ -8,10 +8,10 @@ import { supabase } from "../supabaseClient.js";
 
 export default function Home() {
   const [events, setEvents] = useState([]);
-  const [homeQuery, setHomeQuery] = useState(""); // keep current query for "See More"
+  const [homeQuery, setHomeQuery] = useState("");
   const navigate = useNavigate();
 
-  const TEASER_SIZE = 9; // show 6–8 on home; using 8 feels fuller
+  const TEASER_SIZE = 9;
 
   const fetchTeaser = async (rawQuery = "") => {
     const query = (rawQuery || "").trim();

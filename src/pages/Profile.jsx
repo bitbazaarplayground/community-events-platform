@@ -203,25 +203,56 @@ export default function Profile({ user }) {
             <section className="space-y-6">
               <h3 className="text-lg font-semibold">Profile Details</h3>
 
-              {/* Avatar */}
-              <div className="flex items-center gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
+              {/* Avatar Upload Section */}
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="flex flex-col items-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Profile Photo
                   </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files[0])}
-                    className="mt-1 block w-full"
-                  />
+
+                  {/* Upload button with nice border */}
+                  <label
+                    htmlFor="avatar-upload"
+                    className="cursor-pointer flex items-center justify-center w-36 h-36 border-2 border-dashed border-gray-300 rounded-full hover:border-purple-500 hover:bg-purple-50 transition"
+                  >
+                    {imageFile || avatarUrl ? (
+                      <img
+                        src={
+                          imageFile ? URL.createObjectURL(imageFile) : avatarUrl
+                        }
+                        alt="Preview"
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-500 text-center px-2">
+                        📷 Upload Image
+                      </span>
+                    )}
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setImageFile(e.target.files[0])}
+                    />
+                  </label>
+
+                  {/* Add a clear text fallback under button */}
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    JPG or PNG, up to 2 MB.
+                  </p>
                 </div>
-                {avatarUrl && (
-                  <img
-                    src={avatarUrl}
-                    alt="Avatar"
-                    className="w-24 h-24 rounded-full object-cover shadow-sm"
-                  />
+
+                {/* Display current avatar on right if exists */}
+                {avatarUrl && !imageFile && (
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-1">Current Photo:</p>
+                    <img
+                      src={avatarUrl}
+                      alt="Current avatar"
+                      className="w-24 h-24 rounded-full object-cover shadow-sm mx-auto"
+                    />
+                  </div>
                 )}
               </div>
 
@@ -345,7 +376,9 @@ export default function Profile({ user }) {
                     checked={allowPush}
                     onChange={(e) => setAllowPush(e.target.checked)}
                   />
-                  <span>In-app notifications</span>
+                  <span>
+                    In-app notifications <em>Coming soon</em>
+                  </span>
                 </label>
               </div>
             </section>

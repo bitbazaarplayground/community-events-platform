@@ -269,14 +269,13 @@ export default function EventForm({ user, onEventCreated }) {
       <div className="grid sm:grid-cols-2 gap-4 items-start">
         <div>
           <label className="block text-sm font-medium mb-1">Upload Image</label>
-          <label className="block text-sm font-medium mb-1">Upload Image</label>
 
           <label
             htmlFor="file-upload"
             className="flex items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg py-4 cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition"
           >
             <span className="text-sm text-gray-700 hover:text-purple-600 transition">
-              📁 Click to upload or drag & drop
+              📁 Click to upload
             </span>
             <input
               id="file-upload"

@@ -34,7 +34,7 @@ export default function FancySearchBar({
   );
   const [categories, setCategories] = useState([]);
 
-  const filtersTouchedRef = useRef(false); // ✅ don't fire onSearch on mount (Browse)
+  const filtersTouchedRef = useRef(false);
 
   const basePrefix = index === 0 ? "Search " : "Search by ";
 
@@ -42,7 +42,6 @@ export default function FancySearchBar({
   useEffect(() => {
     setInputValue(initialQuery);
     setUserTyped(initialQuery.length > 0);
-    // do NOT set inputTouchedRef.current here to avoid auto firing onSearch
   }, [initialQuery]);
 
   // Keep Browse filters in sync if initialFilters changes
@@ -145,9 +144,7 @@ export default function FancySearchBar({
     fetchCategories();
   }, []);
 
-  // =======================
   //        RENDER
-  // =======================
 
   if (variant === "browse") {
     return (
@@ -194,7 +191,6 @@ export default function FancySearchBar({
               const selected = categories.find((c) => c.id === e.target.value);
               setCategoryQuery(e.target.value);
 
-              // Fire immediately with both id + label
               onSearch?.({
                 event: eventQuery,
                 location: locationQuery,
@@ -243,9 +239,14 @@ export default function FancySearchBar({
         type="text"
         value={inputValue}
         onChange={(e) => {
-          inputTouchedRef.current = true; // ✅ user interacted (prevents firing on mount)
-          setInputValue(e.target.value);
-          setUserTyped(e.target.value.length > 0);
+          inputTouchedRef.current = true;
+          const value = e.target.value;
+          setInputValue(value);
+          setUserTyped(value.length > 0);
+
+          if (value.trim().length === 0) {
+            onSearch?.("");
+          }
         }}
         onKeyDown={handleKeyDown}
         className="w-full border rounded-full px-4 py-3 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -266,7 +267,7 @@ export default function FancySearchBar({
         <FaSearch />
       </button>
 
-      {/* Animated placeholder (only if user hasn't typed) */}
+      {/* Animated placeholder*/}
       {!userTyped && (
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
           {basePrefix + text}
