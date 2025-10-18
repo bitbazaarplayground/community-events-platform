@@ -3,7 +3,8 @@ import FancySearchBar from "./FancySearchbar.jsx";
 
 export default function Hero({ onSearch }) {
   return (
-    <section className="bg-gradient-to-r from-white to-purple-200">
+    // <section className="bg-gradient-to-r from-white to-purple-200">
+    <section className="bg-gradient-to-r from-purple-50 via-white to-purple-100">
       <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center">
         {/* Left content */}
         <div className="flex-1 text-center md:text-left mb-8 md:mb-0">

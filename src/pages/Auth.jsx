@@ -86,55 +86,65 @@ export default function Auth({ onLogin }) {
               {isSignUp ? "Sign Up" : "Log In"}
             </h2>
 
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full px-4 py-2 border rounded mb-4"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full px-4 py-2 border rounded mb-4"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-
-            {/* Show on both signup and login */}
-            <input
-              type="text"
-              placeholder="Discount Code (optional)"
-              className="w-full px-4 py-2 border rounded mb-4"
-              value={adminCode}
-              onChange={(e) => setAdminCode(e.target.value)}
-            />
-
-            {!isSignUp && (
-              <p className="text-sm text-right mb-4">
-                <button
-                  onClick={() => {
-                    setForgotMode(true);
-                    setError(null);
-                  }}
-                  className="text-blue-600 underline"
-                >
-                  Forgot Password?
-                </button>
-              </p>
-            )}
-
-            {error && (
-              <p className="text-sm text-center mb-4 text-gray-700">{error}</p>
-            )}
-
-            <button
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-              onClick={handleAuth}
-              disabled={loading}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!loading) handleAuth();
+              }}
             >
-              {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Log In"}
-            </button>
+              <input
+                type="email"
+                placeholder="Email"
+                className="w-full px-4 py-2 border rounded mb-4"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                className="w-full px-4 py-2 border rounded mb-4"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+
+              <input
+                type="text"
+                placeholder="Discount Code (optional)"
+                className="w-full px-4 py-2 border rounded mb-4"
+                value={adminCode}
+                onChange={(e) => setAdminCode(e.target.value)}
+              />
+
+              {!isSignUp && (
+                <p className="text-sm text-right mb-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotMode(true);
+                      setError(null);
+                    }}
+                    className="text-blue-600 underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </p>
+              )}
+
+              {error && (
+                <p className="text-sm text-center mb-4 text-gray-700">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+                disabled={loading}
+              >
+                {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Log In"}
+              </button>
+            </form>
 
             <p className="text-sm text-center mt-4">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
