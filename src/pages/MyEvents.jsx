@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
+
 import {
   Bar,
   BarChart,
@@ -15,8 +17,8 @@ import EventCard from "../components/EventCard.jsx";
 import { supabase } from "../supabaseClient.js";
 
 export default function MyEvents() {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState("user");
+  const { user, userRole, sessionChecked } = useAuth();
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +42,6 @@ export default function MyEvents() {
   const [showTickets, setShowTickets] = useState(true);
 
   // View All Attendees
-  // View All Attendees
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -53,57 +54,31 @@ export default function MyEvents() {
   // 🔹 STEP 1 — Fetch current user + their events
   // ================================================================
   useEffect(() => {
-    let active = true;
-    async function loadUserEvents() {
+    if (!sessionChecked || !user || userRole !== "admin") return;
+
+    const loadUserEvents = async () => {
       setLoading(true);
       try {
-        const { data: udata } = await supabase.auth.getUser();
-        const u = udata?.user;
-
-        if (!u) {
-          setUser(null);
-          setEvents([]);
-          return;
-        }
-        setUser(u);
-
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("role")
-          .eq("id", u.id)
-          .maybeSingle();
-
-        const userRole = profile?.role || "user";
-        setRole(userRole);
-
-        if (userRole !== "admin") {
-          setEvents([]);
-          return;
-        }
-
         const { data, error } = await supabase
           .from("events")
           .select(
             "id, title, date_time, price, image_url, location, created_by, categories(name)"
           )
-          .eq("created_by", u.id)
+          .eq("created_by", user.id)
           .order("date_time", { ascending: false });
 
         if (error) throw error;
-        if (active) setEvents(data || []);
+        setEvents(data || []);
       } catch (err) {
         console.error("❌ Error loading events:", err.message);
-        if (active) setEvents([]);
+        setEvents([]);
       } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
-    }
+    };
 
     loadUserEvents();
-    return () => {
-      active = false;
-    };
-  }, []);
+  }, [sessionChecked, user, userRole]);
 
   // ================================================================
   // 🔹 STEP 2 — Fetch KPI metrics
@@ -288,19 +263,27 @@ export default function MyEvents() {
   // ================================================================
   // 🔹 STEP 4 — UI Rendering
   // ================================================================
+  if (!sessionChecked)
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-10 text-gray-600 text-center">
+        Loading your session…
+      </div>
+    );
+
   if (!user)
     return (
-      <div className="max-w-5xl mx-auto px-4 py-10 text-gray-600">
+      <div className="max-w-5xl mx-auto px-4 py-10 text-gray-600 text-center">
         Please log in to view your events.
       </div>
     );
 
-  if (role !== "admin")
+  if (userRole !== "admin")
     return (
-      <div className="max-w-5xl mx-auto px-4 py-10 text-gray-600">
+      <div className="max-w-5xl mx-auto px-4 py-10 text-gray-600 text-center">
         Only admins can view analytics.
       </div>
     );
+
   // ================================================================
   // 🔹 STEP 5 — CSV Export Functions
   // ================================================================
