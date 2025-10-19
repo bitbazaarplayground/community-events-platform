@@ -10,11 +10,9 @@ export function AuthProvider({ children }) {
   const [userRole, setUserRole] = useState(null);
   const [sessionChecked, setSessionChecked] = useState(false);
 
-  // Cached saved events
   const [savedEvents, setSavedEvents] = useState([]);
   const [savedLoading, setSavedLoading] = useState(false);
 
-  // Utility: fetch saved events
   const fetchSavedEvents = async (uid = user?.id) => {
     if (!uid) return;
     try {
@@ -33,7 +31,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Fetch user + profile at startup
+  // Fetch user and profile on load
   useEffect(() => {
     let active = true;
     (async () => {
@@ -74,7 +72,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // sign-in / sign-out
+  // Handle auth state changes
   useEffect(() => {
     const {
       data: { subscription },
@@ -104,6 +102,26 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ✅ Logout function with redirect
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // Clear state
+      setUser(null);
+      setProfile(null);
+      setUserRole(null);
+      setSavedEvents([]);
+      console.log("✅ Logged out successfully");
+
+      // Redirect to homepage
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Logout failed:", err.message);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -114,6 +132,7 @@ export function AuthProvider({ children }) {
         savedEvents,
         savedLoading,
         fetchSavedEvents,
+        logout,
       }}
     >
       {children}

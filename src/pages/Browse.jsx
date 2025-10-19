@@ -1,9 +1,7 @@
-// src/pages/Browse.jsx
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import EventCard from "../components/EventCard.jsx";
 import FancySearchBar from "../components/FancySearchbar.jsx";
-import { useAuth } from "../context/AuthContext.jsx";
 import {
   logTicketmasterCategories,
   searchTicketmaster,
@@ -22,7 +20,6 @@ const TM_SEGMENT_MAP = {
 };
 
 export default function Browse() {
-  const { sessionChecked } = useAuth();
   const [events, setEvents] = useState([]);
   const [page, setPage] = useState(0);
   const [hasMoreLocal, setHasMoreLocal] = useState(true);
@@ -30,6 +27,7 @@ export default function Browse() {
   const [tmPage, setTmPage] = useState(0);
   const [tmHasMore, setTmHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const [tmUnavailable, setTmUnavailable] = useState(false);
 
   const PAGE_SIZE = 12;
@@ -39,33 +37,50 @@ export default function Browse() {
   }, []);
 
   const fetchEvents = async (newFilters = {}, reset = false) => {
-    if (!sessionChecked) return;
     if (loading) return;
     setLoading(true);
+    // Clear any old prefetched data if filters changed
+    const cachedNext = localStorage.getItem("nextTmPage");
+    if (cachedNext) {
+      try {
+        const { filters: cachedFilters } = JSON.parse(cachedNext);
+        // compare old cached filters to current ones
+        if (JSON.stringify(cachedFilters) !== JSON.stringify(newFilters)) {
+          // console.log("🧹Clearing outdated prefetched data (filters changed)");
+          localStorage.removeItem("nextTmPage");
+        }
+      } catch {
+        localStorage.removeItem("nextTmPage");
+      }
+    }
 
     const applied = reset ? newFilters : filters;
 
-    // Resolve category name
+    // 🔧 FIX: Ensure categoryLabel is populated if only category ID is present
     if (applied.category && !applied.categoryLabel) {
       const { data: cat, error } = await supabase
         .from("categories")
         .select("name")
         .eq("id", applied.category)
         .maybeSingle();
-      if (!error && cat?.name) applied.categoryLabel = cat.name;
+      if (!error && cat?.name) {
+        applied.categoryLabel = cat.name;
+      }
     }
 
     setFilters(applied);
+
     const from = reset ? 0 : page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
     try {
-      // === 1️⃣ Local events ===
+      // === 1️⃣ Local events from Supabase ===
       let q = supabase
         .from("events")
         .select(
-          "id, title, description, location, date_time, price, is_paid, seats_left, created_by, image_url, category_id, extra_dates, categories(name)"
+          "id, title, description, location, date_time, price, is_paid, seats_left, created_by, image_url, category_id, categories(name)"
         )
+
         .order("date_time", { ascending: true })
         .range(from, to);
 
@@ -74,23 +89,13 @@ export default function Browse() {
       if (applied.category) q = q.eq("category_id", applied.category);
 
       const localRes = await q;
-      const localData = localRes.data || [];
 
-      // ✅ Proper deduplication (restored original behavior)
-      const groupedLocal = {};
-      for (const ev of localData) {
-        const key = `${ev.title}::${ev.location}`;
-        const date = ev.date_time;
-        if (!groupedLocal[key]) {
-          groupedLocal[key] = { ...ev, extra_dates: [] };
-        } else {
-          groupedLocal[key].extra_dates.push(date);
-          const currentDate = new Date(groupedLocal[key].date_time);
-          if (new Date(date) < currentDate) groupedLocal[key].date_time = date; // keep earliest date
-        }
+      if (localRes.error) {
+        console.error("❌ Supabase error:", localRes.error.message);
       }
 
-      const localEvents = Object.values(groupedLocal).map((row) => ({
+      const localData = localRes.data || [];
+      const local = localData.map((row) => ({
         id: row.id,
         title: row.title,
         date_time: row.date_time,
@@ -104,16 +109,21 @@ export default function Browse() {
         category: row.categories?.name || null,
         external_source: null,
         external_url: null,
-        extra_dates: row.extra_dates,
+        external_organizer: null,
+        extra_dates: row.extra_dates || [],
       }));
 
       // === 2️⃣ Ticketmaster events ===
+      let ticketmaster = [];
       let tmRes = { events: [], nextPage: 0, hasMore: false };
+
       try {
         const tmCategory =
           applied?.categoryLabel && TM_SEGMENT_MAP[applied.categoryLabel]
             ? TM_SEGMENT_MAP[applied.categoryLabel]
             : "";
+
+        // ✅ Update the already-declared tmRes
         tmRes = await searchTicketmaster(
           {
             q: applied.event || "",
@@ -122,105 +132,164 @@ export default function Browse() {
           },
           reset ? 0 : tmPage
         );
-        setTmUnavailable(false);
+
+        ticketmaster = tmRes?.events || [];
+        setTmUnavailable(false); // ✅ API responded fine
       } catch (err) {
-        console.warn("⚠️ TM API unavailable:", err.message);
-        setTmUnavailable(true);
+        console.error("⚠️ Ticketmaster API unavailable:", err.message);
+        setTmUnavailable(true); // ⚠️ Mark API as down
+        ticketmaster = [];
       }
 
-      // ✅ Group Ticketmaster duplicates (restored original grouping)
-      const groupedTM = {};
-      for (const ev of tmRes.events || []) {
-        const key = `${ev.title}::${ev.location}`;
-        const date = ev.date_time;
-        if (!groupedTM[key]) {
-          groupedTM[key] = { ...ev, extraDates: [] };
-        } else {
-          groupedTM[key].extraDates.push(date);
-          const currentDate = new Date(groupedTM[key].date_time);
-          if (new Date(date) < currentDate)
-            groupedTM[key].date_time = ev.date_time;
+      /// === 3️⃣ Dedupe Ticketmaster events ===
+      const hasKeyword = Boolean(applied.event?.trim());
+      const hasAnyFilter =
+        hasKeyword ||
+        Boolean(applied.location?.trim()) ||
+        Boolean(applied.categoryLabel?.trim());
+
+      // Normalize helper: strips times, punctuation, etc.
+      const normalizeText = (str = "") =>
+        str
+          .toLowerCase()
+          .trim()
+          .replace(/\b(mon|tue|wed|thu|fri|sat|sun)(day)?\b/gi, "")
+          .replace(/\b\d{1,2}:\d{2}\b/g, "")
+          .replace(/&\s*\d{1,2}(:\d{2})?/g, "")
+          .replace(/[^\w\s]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+      // ✅ Only dedupe if browsing by category/location (not keyword)
+      if (!hasKeyword) {
+        const grouped = {};
+
+        for (const ev of ticketmaster) {
+          const title = normalizeText(ev.title);
+          const venue =
+            normalizeText(
+              ev.location?.split(",")[0] ||
+                ev._embedded?.venues?.[0]?.name ||
+                ev._embedded?.venues?.[0]?.city?.name ||
+                ""
+            ) || "unknown";
+
+          const key = `${title}::${venue}`;
+          const date = new Date(ev.date_time);
+
+          if (!grouped[key]) {
+            grouped[key] = { ...ev, extraDates: [] };
+          } else {
+            grouped[key].extraDates.push(date);
+            // Always keep the earliest date
+            const currentDate = new Date(grouped[key].date_time);
+            if (date < currentDate) grouped[key].date_time = ev.date_time;
+          }
         }
+
+        // +X more dates available
+        ticketmaster = Object.values(grouped).map((ev) => ({
+          ...ev,
+          extraCount: ev.extraDates.length,
+          extraDates: ev.extraDates,
+        }));
       }
 
-      const tmEvents = Object.values(groupedTM).map((ev) => ({
-        ...ev,
-        extraCount: ev.extraDates?.length,
-        extraDates: ev.extraDates,
-      }));
+      // === 4️⃣ Combine both sources ===
+      let combined = [...local, ...ticketmaster];
 
-      // === 3️⃣ Combine + Interleave ===
-      const combined = [...localEvents, ...tmEvents];
-      const localOnly = combined.filter((e) => !e.external_source);
-      const tmOnly = combined.filter(
+      // === 5️⃣ Sort or shuffle depending on filters ===
+      if (!hasAnyFilter && reset) {
+        combined = combined.sort(() => Math.random() - 0.5);
+      } else {
+        combined = combined.sort((a, b) => {
+          const da = a.date_time ? new Date(a.date_time).getTime() : 0;
+          const db = b.date_time ? new Date(b.date_time).getTime() : 0;
+          return da - db;
+        });
+      }
+
+      // === 6️⃣ Interleave local + Ticketmaster events ===
+      const localEvents = combined.filter((e) => !e.external_source);
+      const tmEvents = combined.filter(
         (e) => e.external_source === "ticketmaster"
       );
 
       const interleaved = [];
-      while (localOnly.length || tmOnly.length) {
+      while (localEvents.length || tmEvents.length) {
         const useLocal =
           Math.random() < 0.5
-            ? localOnly.length > 0
-            : tmOnly.length === 0
+            ? localEvents.length > 0
+            : tmEvents.length === 0
             ? true
             : false;
-        if (useLocal && localOnly.length) interleaved.push(localOnly.pop());
-        else if (tmOnly.length) interleaved.push(tmOnly.pop());
+        if (useLocal && localEvents.length) {
+          interleaved.push(localEvents.pop());
+        } else if (tmEvents.length) {
+          interleaved.push(tmEvents.pop());
+        }
       }
 
-      // === 4️⃣ Apply sorting ===
-      const hasFilters =
-        applied.event || applied.location || applied.categoryLabel;
-      const sorted = hasFilters
-        ? interleaved.sort(
-            (a, b) => new Date(a.date_time) - new Date(b.date_time)
-          )
-        : interleaved.sort(() => Math.random() - 0.5);
-
-      // === 5️⃣ Set State ===
+      // === 7️⃣ Save results ===
       if (reset) {
-        setEvents(sorted);
+        setEvents(interleaved);
         setPage(1);
         setTmPage(tmRes.nextPage || 0);
       } else {
-        setEvents((prev) => [...prev, ...sorted]);
+        setEvents((prev) => [...prev, ...interleaved]);
         setPage((prev) => prev + 1);
         setTmPage(tmRes.nextPage || tmPage);
       }
 
-      setHasMoreLocal(localData.length === PAGE_SIZE);
-      setTmHasMore(tmRes.hasMore);
+      setHasMoreLocal((prev) =>
+        reset
+          ? localData.length === PAGE_SIZE
+          : prev && localData.length === PAGE_SIZE
+      );
+
+      setTmHasMore((prev) => (reset ? tmRes.hasMore : prev || tmRes.hasMore));
+
+      if (reset && ticketmaster.length > 0) {
+        try {
+          const preload = await searchTicketmaster(applied, tmPage + 1);
+          if (preload?.events?.length) {
+            localStorage.setItem(
+              "nextTmPage",
+              JSON.stringify({
+                filters: applied,
+                data: preload,
+              })
+            );
+          }
+        } catch (err) {
+          console.warn("⚠️ Prefetch failed:", err.message);
+        }
+      }
     } catch (err) {
       console.error("fetchEvents failed:", err);
     } finally {
+      await new Promise((res) => setTimeout(res, 300)); // smooth out flicker
       setLoading(false);
     }
   };
 
+  // Initial fetch
   useEffect(() => {
-    if (sessionChecked) fetchEvents({}, true);
-  }, [sessionChecked]);
+    fetchEvents({}, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const canLoadMore = useMemo(
     () => hasMoreLocal || tmHasMore,
     [hasMoreLocal, tmHasMore]
   );
-
   const handleSearch = useCallback(
     (filters) => {
       if (loading) return;
       fetchEvents(filters, true);
     },
-    [loading]
+    [loading] // ✅ re-creates only when loading changes
   );
-
-  if (!sessionChecked) {
-    return (
-      <div className="h-screen flex items-center justify-center text-gray-600">
-        Loading events...
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -251,10 +320,11 @@ export default function Browse() {
         <p className="text-center text-gray-500 mb-10">
           Upcoming events you won’t want to miss
         </p>
-
         {tmUnavailable && (
           <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 text-center py-3 px-4 rounded mb-8">
             ⚠️ Some external events (Ticketmaster) are temporarily unavailable.
+            Local events from our community are still visible — please try again
+            later.
           </div>
         )}
 
@@ -273,7 +343,25 @@ export default function Browse() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <EventCard {...ev} />
+                  <EventCard
+                    id={ev.id}
+                    title={ev.title}
+                    date={ev.date_time}
+                    price={ev.price}
+                    is_paid={ev.is_paid}
+                    location={ev.location}
+                    description={ev.description}
+                    category={ev.category}
+                    seats_left={ev.seats_left}
+                    image_url={ev.image_url}
+                    creatorId={ev.creatorId}
+                    external_source={ev.external_source}
+                    external_url={ev.external_url}
+                    external_organizer={ev.external_organizer}
+                    extraCount={ev.extraCount}
+                    extraDates={ev.extraDates}
+                    extra_dates={ev.extra_dates}
+                  />
                 </motion.div>
               ))
             )}
@@ -283,7 +371,33 @@ export default function Browse() {
         {canLoadMore && (
           <div className="flex justify-center mt-12">
             <button
-              onClick={() => fetchEvents(filters)}
+              onClick={() => {
+                if (loading) return;
+
+                // Try using prefetched Ticketmaster page first
+                const cachedNext = localStorage.getItem("nextTmPage");
+                if (cachedNext) {
+                  try {
+                    const { filters: cachedFilters, data } =
+                      JSON.parse(cachedNext);
+                    if (
+                      JSON.stringify(cachedFilters) === JSON.stringify(filters)
+                    ) {
+                      setEvents((prev) => [...prev, ...data.events]);
+                      setTmPage(data.nextPage || tmPage);
+                      setTmHasMore(data.hasMore);
+                      localStorage.removeItem("nextTmPage");
+                      return;
+                    }
+                  } catch (err) {
+                    console.warn("⚠️ Failed to use prefetched data:", err);
+                    localStorage.removeItem("nextTmPage");
+                  }
+                }
+
+                // Fallback
+                fetchEvents(filters);
+              }}
               disabled={loading}
               className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition flex items-center gap-2 disabled:opacity-70"
             >
