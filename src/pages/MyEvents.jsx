@@ -84,10 +84,10 @@ export default function MyEvents() {
   // 🔹 STEP 2 — Fetch KPI metrics
   // ================================================================
   useEffect(() => {
-    if (!user || role !== "admin") return;
+    if (!user || userRole !== "admin") return;
     fetchKPIData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, role, selectedEventId]);
+  }, [user, userRole, selectedEventId]);
 
   async function fetchKPIData() {
     setLoading(true);
