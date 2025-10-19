@@ -35,11 +35,8 @@ function AppRoutes() {
   const { user, userRole, logout, sessionChecked } = useAuth();
 
   if (!sessionChecked) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-gray-600 text-lg">Loading...</p>
-      </div>
-    );
+    // Wait silently for Supabase to restore the session
+    return null;
   }
 
   return (
