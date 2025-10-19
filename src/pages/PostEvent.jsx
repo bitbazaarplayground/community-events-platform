@@ -1,39 +1,49 @@
 // src/pages/PostEvent.jsx
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EventForm from "../components/EventForm.jsx";
+import { useAuth } from "../context/AuthContext.jsx"; // ✅ get user from context
 
-export default function PostEvent({ user }) {
-  // optionally fetch some admin data or stats here -> Maybe analytics, or quick links to manage events or You are Posting as <Your Name/Email>”.
+export default function PostEvent() {
+  const { user, sessionChecked, userRole } = useAuth(); // ✅ global context
   const [justPosted, setJustPosted] = useState(false);
   const [lastEventTitle, setLastEventTitle] = useState("");
   const navigate = useNavigate();
 
   const handleEventCreated = (newEvent) => {
-    // Optional: newEvent param if EventForm returns data
     setJustPosted(true);
     setLastEventTitle(newEvent?.title || "");
   };
 
-  const handlePostAnother = () => {
-    setJustPosted(false);
-    // Possibly reset scroll or focus
-  };
+  const handlePostAnother = () => setJustPosted(false);
+  const handleGoHome = () => navigate("/");
+  const handleMyEvents = () => navigate("/myevents");
 
-  const handleGoHome = () => {
-    navigate("/");
-  };
+  // ✅ Wait for session before rendering
+  if (!sessionChecked)
+    return <p className="text-center text-gray-500">Loading session...</p>;
 
-  const handleMyEvents = () => {
-    navigate("/myevents");
-  };
+  if (!user)
+    return (
+      <p className="text-center text-gray-600">
+        Please log in to post a new event.
+      </p>
+    );
+
+  if (userRole !== "admin")
+    return (
+      <p className="text-center text-red-500">
+        Only admins can post new events.
+      </p>
+    );
 
   return (
     <div className="max-w-lg mx-auto mt-8">
       <h2 className="text-2xl font-semibold mb-4">Post a New Event</h2>
+
       <p className="mb-4 text-gray-600">
-        Posting as <span className="font-medium">{user.email}</span>
+        Posting as{" "}
+        <span className="font-medium">{user.email || "Unknown user"}</span>
       </p>
 
       {justPosted ? (
@@ -63,7 +73,7 @@ export default function PostEvent({ user }) {
           </div>
         </div>
       ) : (
-        <EventForm user={user} onEventCreated={handleEventCreated} />
+        <EventForm onEventCreated={handleEventCreated} />
       )}
     </div>
   );

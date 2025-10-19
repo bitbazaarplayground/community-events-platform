@@ -6,8 +6,9 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
+import { useAuth } from "../context/AuthContext.jsx";
 import { searchTicketmaster } from "../lib/ticketmaster.js";
-import { supabase } from "../supabaseClient.js";
+import { supabase } from "../supabaseClient.js"; // still used for Discover only
 
 import "../styles/swiper.css";
 
@@ -28,98 +29,20 @@ const avatarFromName = (nameOrEmail) =>
 export default function UserDashboard() {
   const navigate = useNavigate();
 
-  // ===== Profile =====
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  // ===== Global AuthContext =====
+  const { user, profile, sessionChecked, savedEvents, fetchSavedEvents } =
+    useAuth();
 
   // ===== Discover carousel =====
   const [discoverEvents, setDiscoverEvents] = useState([]);
   const [loadingDiscover, setLoadingDiscover] = useState(true);
 
-  // ===== Saved Events =====
-  const [savedEvents, setSavedEvents] = useState([]);
-
-  // --- Load saved events (hybrid: local + ticketmaster)
+  // ✅ Ensure saved events are fetched once if not loaded
   useEffect(() => {
-    (async () => {
-      const { data: user } = await supabase.auth.getUser();
-      const userId = user?.user?.id;
-      if (!userId) return;
-
-      const { data, error } = await supabase
-        .from("saved_events")
-        .select("*")
-        .eq("user_id", userId);
-
-      if (error) {
-        console.error("Error fetching saved_events:", error.message);
-        return;
-      }
-
-      // classify by id type
-      const isUuid = (str) =>
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-          str
-        );
-
-      const localIds = data.map((ev) => ev.event_id).filter((id) => isUuid(id));
-      const tmEvents = data.filter((ev) => !isUuid(ev.event_id));
-
-      let localEvents = [];
-      if (localIds.length > 0) {
-        const { data: rows, error: err2 } = await supabase
-          .from("events")
-          .select("*")
-          .in("id", localIds);
-
-        if (!err2) localEvents = rows || [];
-        else console.error("Error fetching local events:", err2.message);
-      }
-
-      // Merge both types
-      const merged = [
-        ...localEvents,
-        ...tmEvents.map((ev) => ({
-          id: ev.event_id,
-          title: ev.title,
-          location: ev.location,
-          image_url: ev.image_url,
-          external_url: ev.external_url,
-          external_source: "ticketmaster",
-        })),
-      ];
-
-      setSavedEvents(merged);
-    })();
-  }, []);
-
-  // --- Load current user + profile
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const { data: udata } = await supabase.auth.getUser();
-      const u = udata?.user || null;
-      if (!active) return;
-      setUser(u);
-
-      if (u) {
-        const { data: prof } = await supabase
-          .from("user_profiles")
-          .select("first_name,last_name,avatar_url,username")
-          .eq("id", u.id)
-          .maybeSingle();
-
-        if (!active) return;
-        setProfile(prof || null);
-      }
-
-      setLoadingUser(false);
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (sessionChecked && user && savedEvents.length === 0) {
+      fetchSavedEvents();
+    }
+  }, [user, sessionChecked]);
 
   // --- Discover carousel (shuffle local + Ticketmaster)
   useEffect(() => {
@@ -201,7 +124,7 @@ export default function UserDashboard() {
     return fn || user?.email || "User";
   }, [profile, user]);
 
-  // UI components
+  // ===== UI components =====
   function SectionCard({ link, imgSrc, alt }) {
     return (
       <div
@@ -231,21 +154,19 @@ export default function UserDashboard() {
   }
 
   // ===== RENDER =====
-  if (loadingUser) {
+  if (!sessionChecked)
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <p className="text-gray-600">Loading your dashboard…</p>
+      <div className="max-w-6xl mx-auto px-4 py-10 text-gray-600 text-center">
+        Loading your dashboard…
       </div>
     );
-  }
 
-  if (!user) {
+  if (!user)
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <p className="text-gray-600">Please sign in to view your dashboard.</p>
+      <div className="max-w-6xl mx-auto px-4 py-10 text-gray-600 text-center">
+        Please sign in to view your dashboard.
       </div>
     );
-  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-10">

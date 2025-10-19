@@ -6,87 +6,117 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [sessionChecked, setSessionChecked] = useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  // ✅ Cached saved events
+  const [savedEvents, setSavedEvents] = useState([]);
+  const [savedLoading, setSavedLoading] = useState(false);
 
+  // 🧩 Utility: fetch saved events
+  const fetchSavedEvents = async (uid = user?.id) => {
+    if (!uid) return;
+    try {
+      setSavedLoading(true);
+      const { data, error } = await supabase
+        .from("saved_events")
+        .select("*")
+        .eq("user_id", uid);
+
+      if (error) throw error;
+
+      setSavedEvents(data || []);
+    } catch (err) {
+      console.error("Error fetching saved events:", err.message);
+    } finally {
+      setSavedLoading(false);
+    }
+  };
+
+  // 🧠 Fetch user + profile at startup
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        const currentUser = session?.user || null;
+        if (!active) return;
+
+        setUser(currentUser);
+
+        if (currentUser) {
+          const { data: profileData, error: profErr } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("id", currentUser.id)
+            .maybeSingle();
+
+          if (!active) return;
+          if (profErr) throw profErr;
+
+          setProfile(profileData);
+          await fetchSavedEvents(currentUser.id); // ✅ preload saved events
+        }
+      } catch (err) {
+        console.error("AuthContext init error:", err.message);
+      } finally {
+        if (active) setSessionChecked(true);
+      }
+    })();
+
+    // Cleanup flag
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 🔄 Listen for sign-in / sign-out changes in real time
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user || null;
       setUser(currentUser);
 
       if (currentUser) {
-        const { data: profile } = await supabase
+        const { data: profileData } = await supabase
           .from("user_profiles")
-          .select("role")
+          .select("*")
           .eq("id", currentUser.id)
           .maybeSingle();
-        setUserRole(profile?.role || "user");
+
+        setProfile(profileData);
+        await fetchSavedEvents(currentUser.id);
+      } else {
+        setProfile(null);
+        setSavedEvents([]);
       }
 
       setSessionChecked(true);
-    };
+    });
 
-    init();
-
-    // ✅ Listen for sign in/out
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
-          const u = session.user;
-          setUser(u);
-
-          const savedCode = localStorage.getItem("pendingAdminCode") || "";
-          const role =
-            savedCode.toUpperCase() === "ADMIN123" ? "admin" : "user";
-
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("id")
-            .eq("id", u.id)
-            .maybeSingle();
-
-          if (!profile) {
-            await supabase
-              .from("user_profiles")
-              .upsert([{ id: u.id, email: u.email, role }]);
-          }
-
-          setUserRole(role);
-          localStorage.removeItem("pendingAdminCode");
-
-          // ✅ redirect to Home after login
-          window.location.href = "/";
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
-          setUserRole(null);
-        }
-      }
-    );
-
-    return () => listener?.subscription?.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
-  const value = {
-    user,
-    userRole,
-    sessionChecked,
-    logout: async () => {
-      await supabase.auth.signOut();
-      localStorage.clear();
-      sessionStorage.clear();
-      setUser(null);
-      setUserRole(null);
-      window.location.href = "/";
-    },
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        sessionChecked,
+        savedEvents,
+        savedLoading,
+        fetchSavedEvents,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);

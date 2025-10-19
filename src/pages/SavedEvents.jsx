@@ -1,89 +1,46 @@
 // src/pages/SavedEvents.jsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import EventCard from "../components/EventCard.jsx";
-import { supabase } from "../supabaseClient.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const FALLBACK_IMAGE = "https://placehold.co/600x360?text=Event";
-const isUuid = (str) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    str
-  );
 
 export default function SavedEvents() {
   const navigate = useNavigate();
-  const [savedEvents, setSavedEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user, sessionChecked, savedEvents, savedLoading, fetchSavedEvents } =
+    useAuth();
 
+  // Fetch saved events if logged in but not loaded yet
   useEffect(() => {
-    (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+    if (sessionChecked && user && savedEvents.length === 0) {
+      fetchSavedEvents();
+    }
+  }, [user, sessionChecked]);
 
-      // 1) fetch saved rows
-      const { data, error } = await supabase
-        .from("saved_events")
-        .select("event_id, title, location, image_url, external_url, source")
-        .eq("user_id", user.id);
+  // Loading states
+  if (!sessionChecked)
+    return (
+      <p className="p-6 text-gray-600 text-center">Checking your session…</p>
+    );
 
-      if (error) {
-        console.error("Error loading saved events:", error.message);
-        setLoading(false);
-        return;
-      }
+  if (!user)
+    return (
+      <p className="p-6 text-gray-600 text-center">
+        Please sign in to view your saved events.
+      </p>
+    );
 
-      const localIds = data
-        .filter((ev) => isUuid(ev.event_id))
-        .map((ev) => ev.event_id);
+  if (savedLoading)
+    return (
+      <p className="p-6 text-gray-600 text-center">Loading saved events…</p>
+    );
 
-      // 2) fetch local event details
-      let localEvents = [];
-      if (localIds.length > 0) {
-        const { data: evs, error: err2 } = await supabase
-          .from("events")
-          .select("id, created_by")
-          .in("id", localIds);
-
-        if (err2) {
-          console.error("Error loading local events:", err2.message);
-        } else {
-          localEvents = evs;
-        }
-      }
-
-      // 3) merge
-      const formatted = data.map((ev) => {
-        const isLocal = isUuid(ev.event_id);
-        const creator = isLocal
-          ? localEvents.find((row) => row.id === ev.event_id)?.created_by
-          : null;
-
-        return {
-          id: ev.event_id,
-          title: ev.title,
-          location: ev.location,
-          image_url: ev.image_url || FALLBACK_IMAGE,
-          external_url: ev.external_url,
-          external_source: isLocal ? null : "ticketmaster",
-          creatorId: creator,
-        };
-      });
-
-      setSavedEvents(formatted);
-      setLoading(false);
-    })();
-  }, []);
-
-  if (loading)
-    return <p className="p-6 text-gray-600">Loading saved events…</p>;
   if (savedEvents.length === 0)
     return (
-      <p className="p-6 text-gray-600">You don’t have any saved events yet.</p>
+      <p className="p-6 text-gray-600 text-center">
+        You don’t have any saved events yet.
+      </p>
     );
 
   return (
@@ -97,9 +54,19 @@ export default function SavedEvents() {
           ← Back to Dashboard
         </button>
       </div>
+
+      {/* Grid of saved events */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {savedEvents.map((ev) => (
-          <EventCard key={ev.id} {...ev} />
+          <EventCard
+            key={ev.id}
+            id={ev.id}
+            title={ev.title}
+            location={ev.location}
+            image_url={ev.image_url || FALLBACK_IMAGE}
+            external_url={ev.external_url}
+            external_source={ev.external_source}
+          />
         ))}
       </div>
     </div>
