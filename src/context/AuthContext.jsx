@@ -7,13 +7,14 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [sessionChecked, setSessionChecked] = useState(false);
 
-  // ✅ Cached saved events
+  // Cached saved events
   const [savedEvents, setSavedEvents] = useState([]);
   const [savedLoading, setSavedLoading] = useState(false);
 
-  // 🧩 Utility: fetch saved events
+  // Utility: fetch saved events
   const fetchSavedEvents = async (uid = user?.id) => {
     if (!uid) return;
     try {
@@ -24,7 +25,6 @@ export function AuthProvider({ children }) {
         .eq("user_id", uid);
 
       if (error) throw error;
-
       setSavedEvents(data || []);
     } catch (err) {
       console.error("Error fetching saved events:", err.message);
@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // 🧠 Fetch user + profile at startup
+  // Fetch user + profile at startup
   useEffect(() => {
     let active = true;
     (async () => {
@@ -56,11 +56,11 @@ export function AuthProvider({ children }) {
             .eq("id", currentUser.id)
             .maybeSingle();
 
-          if (!active) return;
           if (profErr) throw profErr;
 
           setProfile(profileData);
-          await fetchSavedEvents(currentUser.id); // ✅ preload saved events
+          setUserRole(profileData?.role || "user");
+          await fetchSavedEvents(currentUser.id);
         }
       } catch (err) {
         console.error("AuthContext init error:", err.message);
@@ -69,13 +69,12 @@ export function AuthProvider({ children }) {
       }
     })();
 
-    // Cleanup flag
     return () => {
       active = false;
     };
   }, []);
 
-  // 🔄 Listen for sign-in / sign-out changes in real time
+  // sign-in / sign-out
   useEffect(() => {
     const {
       data: { subscription },
@@ -91,9 +90,11 @@ export function AuthProvider({ children }) {
           .maybeSingle();
 
         setProfile(profileData);
+        setUserRole(profileData?.role || "user");
         await fetchSavedEvents(currentUser.id);
       } else {
         setProfile(null);
+        setUserRole(null);
         setSavedEvents([]);
       }
 
@@ -108,6 +109,7 @@ export function AuthProvider({ children }) {
       value={{
         user,
         profile,
+        userRole,
         sessionChecked,
         savedEvents,
         savedLoading,
