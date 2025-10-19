@@ -1,13 +1,13 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+// src/App.jsx
+import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
+import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
-import { supabase } from "./supabaseClient.js";
 
-// ✅ Lazy load all pages
 const Auth = lazy(() => import("./pages/Auth.jsx"));
 const Browse = lazy(() => import("./pages/Browse.jsx"));
 const Cancel = lazy(() => import("./pages/Cancel.jsx"));
@@ -31,121 +31,10 @@ const TermsOfService = lazy(() =>
   import("./pages/footerPages/TermsOfService.jsx")
 );
 
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-  const [toast, setToast] = useState("");
-  const [loading, setLoading] = useState(true); // 👈 wait before redirecting
+function AppRoutes() {
+  const { user, userRole, logout, sessionChecked } = useAuth();
 
-  useEffect(() => {
-    const fetchUserAndRole = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("role")
-          .eq("id", currentUser.id)
-          .maybeSingle();
-        setUserRole(profile?.role ?? "user");
-      } else {
-        setUserRole(null);
-      }
-
-      setLoading(false); // ✅ only after we’ve checked Supabase
-    };
-
-    // ✅ Defer the initial session check to avoid blocking first render
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(fetchUserAndRole);
-    } else {
-      setTimeout(fetchUserAndRole, 200);
-    }
-
-    // Listen for auth changes (sign in / out)
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
-          const user = session.user;
-          setUser(user);
-
-          const savedCode = localStorage.getItem("pendingAdminCode") || "";
-          const role =
-            savedCode.toUpperCase() === "ADMIN123" ? "admin" : "user";
-
-          // Check or create user profile
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("id")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (!profile) {
-            await supabase
-              .from("user_profiles")
-              .upsert([{ id: user.id, email: user.email, role }]);
-            console.log(`✅ Created ${user.email} with role ${role}`);
-          }
-
-          localStorage.removeItem("pendingAdminCode");
-
-          setToast(
-            role === "admin"
-              ? "🎉 Welcome! Your admin account is now active."
-              : "Welcome back!"
-          );
-
-          await fetchUserAndRole();
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
-          setUserRole(null);
-        }
-      }
-    );
-
-    return () => listener?.subscription?.unsubscribe();
-  }, []);
-
-  // preload routes
-  useEffect(() => {
-    if (userRole === "admin") {
-      // Preload admin-related pages
-      import("./pages/PostEvent.jsx");
-      import("./pages/MyEvents.jsx");
-    }
-
-    if (userRole === "user") {
-      // Preload user-related pages
-      import("./pages/UserDashboard.jsx");
-      import("./pages/MyTickets.jsx");
-      import("./pages/SavedEvents.jsx");
-    }
-  }, [userRole]);
-
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      // Force clear local session
-      localStorage.clear();
-      sessionStorage.clear();
-
-      setUser(null);
-      setUserRole(null);
-
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Error during logout:", error.message);
-    }
-  };
-
-  // 🕒 Prevent redirect flicker on refresh
-  if (loading) {
+  if (!sessionChecked) {
     return (
       <div className="flex items-center justify-center h-screen">
         <p className="text-gray-600 text-lg">Loading...</p>
@@ -154,28 +43,17 @@ export default function App() {
   }
 
   return (
-    <div>
-      <ToastMessage message={toast} onClose={() => setToast("")} />
-      <Navbar user={user} role={userRole} onLogout={handleLogout} />
-
+    <>
+      <Navbar user={user} role={userRole} onLogout={logout} />
       <main className="p-4">
-        {/* ✅ Suspense ensures lazy-loaded pages show fallback while loading */}
         <Suspense fallback={<div className="text-center mt-8">Loading...</div>}>
           <Routes>
-            <Route path="/" element={<Home user={user} role={userRole} />} />
+            <Route path="/" element={<Home />} />
             <Route
               path="/auth"
-              element={
-                user ? <Navigate to="/dashboard" /> : <Auth onLogin={setUser} />
-              }
+              element={user ? <Navigate to="/" /> : <Auth />}
             />
-
-            <Route
-              path="/browse"
-              element={<Browse user={user} role={userRole} />}
-            />
-
-            {/* Admin-only routes */}
+            <Route path="/browse" element={<Browse />} />
             <Route
               path="/post"
               element={
@@ -184,11 +62,10 @@ export default function App() {
                   role={userRole}
                   requiredRole="admin"
                 >
-                  <PostEvent user={user} />
+                  <PostEvent />
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/myevents"
               element={
@@ -197,30 +74,26 @@ export default function App() {
                   role={userRole}
                   requiredRole="admin"
                 >
-                  <MyEvents user={user} />
+                  <MyEvents />
                 </ProtectedRoute>
               }
             />
-
-            {/* Regular user routes */}
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute user={user} role={userRole}>
-                  <UserDashboard user={user} />
+                  <UserDashboard />
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/profile/edit"
               element={
                 <ProtectedRoute user={user} role={userRole}>
-                  <Profile user={user} />
+                  <Profile />
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/me/events"
               element={
@@ -229,7 +102,6 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/me/saved"
               element={
@@ -238,7 +110,6 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/me/past"
               element={
@@ -247,11 +118,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-
-            {/* Verify */}
             <Route path="/verify/:ticketId" element={<VerifyTicket />} />
-
-            {/* Public routes */}
             <Route path="/success" element={<Success />} />
             <Route path="/cancel" element={<Cancel />} />
             <Route path="/about" element={<About />} />
@@ -264,8 +131,16 @@ export default function App() {
           </Routes>
         </Suspense>
       </main>
-
       <Footer />
-    </div>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ToastMessage />
+      <AppRoutes />
+    </AuthProvider>
   );
 }
