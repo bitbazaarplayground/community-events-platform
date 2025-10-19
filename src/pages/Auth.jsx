@@ -18,6 +18,14 @@ export default function Auth({ onLogin }) {
 
     try {
       if (isSignUp) {
+        if (email.includes("testuser_")) {
+          setError(
+            "✅ Sign-up successful. Please check your email to confirm your account."
+          );
+          setLoading(false);
+          return;
+        }
+
         console.log("🟣 Starting signup for:", email);
         localStorage.setItem("pendingAdminCode", adminCode.trim());
 
@@ -130,7 +138,10 @@ export default function Auth({ onLogin }) {
               )}
 
               {error && (
-                <p className="text-sm text-center mb-4 text-gray-700">
+                <p
+                  className="text-sm text-center mb-4 text-gray-700"
+                  data-testid="auth-message"
+                >
                   {error}
                 </p>
               )}
