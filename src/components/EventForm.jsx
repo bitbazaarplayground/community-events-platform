@@ -1,10 +1,12 @@
 // src/components/EventForm.jsx
-
 import { useEffect, useMemo, useState } from "react";
 import LocationAutocomplete from "../components/LocationAutocomplete.jsx";
+import { useAuth } from "../context/AuthContext.jsx"; // ✅ added
 import { supabase } from "../supabaseClient.js";
 
-export default function EventForm({ user, onEventCreated }) {
+export default function EventForm({ onEventCreated }) {
+  const { user, sessionChecked } = useAuth(); // ✅ get user globally
+
   // Core fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -14,7 +16,6 @@ export default function EventForm({ user, onEventCreated }) {
   const [isPaid, setIsPaid] = useState(false);
   const [price, setPrice] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
-
   const [seats, setSeats] = useState("");
 
   // Image handling
@@ -29,17 +30,19 @@ export default function EventForm({ user, onEventCreated }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fetch categories
+  // ✅ Fetch categories only once after session is ready
   useEffect(() => {
+    if (!sessionChecked) return;
     const fetchCategories = async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name");
+        .select("id, name")
+        .order("name");
       if (error) console.error("Error fetching categories:", error.message);
       else setCategories(data || []);
     };
     fetchCategories();
-  }, []);
+  }, [sessionChecked]);
 
   const imagePreview = useMemo(() => {
     if (imageFile) return URL.createObjectURL(imageFile);
@@ -59,6 +62,7 @@ export default function EventForm({ user, onEventCreated }) {
       return "Seats must be a positive number.";
     if (isPaid && (!price || isNaN(price) || parseFloat(price) <= 0))
       return "Price must be a positive number for paid events.";
+    if (!user?.id) return "You must be logged in to post an event.";
     return null;
   };
 
@@ -76,10 +80,11 @@ export default function EventForm({ user, onEventCreated }) {
     const dateTime = `${date}T${time}:00`;
     let image_url = null;
 
-    // Upload image (same as before)
+    // Upload image (simple upload, no compression)
     if (imageFile) {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
+
       try {
         setStatusMsg("📤 Uploading image...");
 
@@ -92,9 +97,9 @@ export default function EventForm({ user, onEventCreated }) {
 
         if (uploadError) {
           console.error("Image upload error:", uploadError.message);
-          setLoading(false);
           setErrorMsg("Failed to upload image.");
           setStatusMsg("");
+          setLoading(false);
           return;
         }
 
@@ -103,8 +108,8 @@ export default function EventForm({ user, onEventCreated }) {
           .getPublicUrl(fileName);
         image_url = publicUrlData?.publicUrl || null;
       } catch (err) {
-        console.error("Compression or upload error:", err);
-        setErrorMsg("Failed to process or upload image.");
+        console.error("Upload error:", err);
+        setErrorMsg("Failed to upload image.");
         setStatusMsg("");
         setLoading(false);
         return;
@@ -115,7 +120,6 @@ export default function EventForm({ user, onEventCreated }) {
 
     // Prepare event data
     const finalPrice = isPaid ? parseFloat(price) || 0 : 0;
-
     const payload = {
       title,
       description,
@@ -125,7 +129,7 @@ export default function EventForm({ user, onEventCreated }) {
       is_paid: isPaid,
       seats: parseInt(seats),
       seats_left: parseInt(seats),
-      created_by: user.id,
+      created_by: user.id, // ✅ now comes from context
       image_url,
       category_id: categoryId,
       external_source: null,
@@ -159,6 +163,17 @@ export default function EventForm({ user, onEventCreated }) {
     }
   };
 
+  // ✅ Prevent rendering if session not ready
+  if (!sessionChecked)
+    return <p className="text-center text-gray-500">Loading session...</p>;
+  if (!user)
+    return (
+      <p className="text-center text-gray-600">
+        Please log in to create an event.
+      </p>
+    );
+
+  // ✅ render form as before
   return (
     <form
       onSubmit={handleSubmit}
@@ -168,7 +183,6 @@ export default function EventForm({ user, onEventCreated }) {
 
       {errorMsg && <p className="text-red-500 text-sm -mt-1">{errorMsg}</p>}
 
-      {/* ---------- Basic fields ---------- */}
       <input
         type="text"
         placeholder="Event Title"
@@ -184,18 +198,15 @@ export default function EventForm({ user, onEventCreated }) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
+
       <label className="block text-sm font-medium text-gray-700 mb-1">
         Location
       </label>
-      <LocationAutocomplete value={location} onChange={setLocation} />
-
-      {/* <input
-        type="text"
-        placeholder="Location"
-        className="w-full border px-4 py-2 rounded"
+      <LocationAutocomplete
         value={location}
-        onChange={(e) => setLocation(e.target.value)}
-      /> */}
+        onChange={setLocation}
+        enableSuggestions={true}
+      />
 
       <div className="flex gap-4">
         <input
@@ -212,7 +223,6 @@ export default function EventForm({ user, onEventCreated }) {
         />
       </div>
 
-      {/* Category */}
       <select
         className="w-full border px-4 py-2 rounded"
         value={categoryId}
@@ -226,7 +236,6 @@ export default function EventForm({ user, onEventCreated }) {
         ))}
       </select>
 
-      {/* 🆕 Paid / Free toggle */}
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2">
           <input
@@ -235,14 +244,13 @@ export default function EventForm({ user, onEventCreated }) {
             onChange={(e) => {
               const checked = e.target.checked;
               setIsPaid(checked);
-              if (!checked) setPrice(""); // reset price when switching to free
+              if (!checked) setPrice("");
             }}
           />
           <span className="text-sm">This is a paid event</span>
         </label>
       </div>
 
-      {/* 🆕 Price input only if paid */}
       {isPaid && (
         <input
           type="number"
@@ -253,7 +261,6 @@ export default function EventForm({ user, onEventCreated }) {
         />
       )}
 
-      {/* Seats */}
       <input
         type="number"
         placeholder="Number of seats"
@@ -262,7 +269,6 @@ export default function EventForm({ user, onEventCreated }) {
         onChange={(e) => setSeats(e.target.value)}
       />
 
-      {/* Image upload & preview (unchanged) */}
       <div className="grid sm:grid-cols-2 gap-4 items-start">
         <div>
           <label className="block text-sm font-medium mb-1">Upload Image</label>
@@ -329,11 +335,10 @@ export default function EventForm({ user, onEventCreated }) {
         </p>
       )}
 
-      {/* Submit */}
       <button
         type="submit"
         className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition disabled:opacity-60"
-        disabled={loading || !!statusMsg.includes("Compressing")}
+        disabled={loading}
       >
         {loading ? "Saving..." : "Save Event"}
       </button>

@@ -1,9 +1,12 @@
-// src/pages/profile.jsx
+// src/pages/Profile.jsx
 import { useEffect, useState } from "react";
 import Container from "../components/Container.jsx";
+import { useAuth } from "../context/AuthContext.jsx"; // ✅ added
 import { supabase } from "../supabaseClient.js";
 
-export default function Profile({ user }) {
+export default function Profile() {
+  const { user, sessionChecked } = useAuth(); // ✅ use global context
+
   // States
   const [loading, setLoading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -11,7 +14,7 @@ export default function Profile({ user }) {
   const [msg, setMsg] = useState("");
 
   // Auth data
-  const [currentEmail, setCurrentEmail] = useState(user?.email || "");
+  const [currentEmail, setCurrentEmail] = useState("");
 
   // Profile data
   const [profile, setProfile] = useState(null);
@@ -33,10 +36,12 @@ export default function Profile({ user }) {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  // Fetch profile from DB
+  // ✅ Fetch profile from DB
   useEffect(() => {
+    if (!sessionChecked) return; // wait for context to be ready
+    if (!user?.id) return; // no user logged in
+
     const fetchProfile = async () => {
-      if (!user?.id) return;
       setLoading(true);
       setMsg("");
 
@@ -71,7 +76,22 @@ export default function Profile({ user }) {
     };
 
     fetchProfile();
-  }, [user]);
+  }, [sessionChecked, user]);
+
+  if (!sessionChecked) {
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-600">
+        Loading your profile...
+      </div>
+    );
+  }
+
+  if (!user)
+    return (
+      <Container>
+        <p>Please log in to view your profile.</p>
+      </Container>
+    );
 
   // Save avatar + profile fields
   const handleSaveProfile = async () => {
