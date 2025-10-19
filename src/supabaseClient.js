@@ -12,3 +12,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+// ✅ Expose Supabase globally for Cypress testing
+if (typeof window !== "undefined") {
+  window.supabase = supabase;
+}
