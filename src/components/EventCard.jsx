@@ -386,7 +386,6 @@ export default function EventCard({
                         onClick={() => {
                           setShowDates(false);
                           setMsg("");
-                          window.scrollTo({ top: 0, behavior: "smooth" });
                           const newDate = new Date(d).toISOString();
                           window.dispatchEvent(
                             new CustomEvent("updateEventDate", {
