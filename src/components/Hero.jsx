@@ -3,31 +3,29 @@ import FancySearchBar from "./FancySearchbar.jsx";
 
 export default function Hero({ onSearch }) {
   return (
-    // <section className="bg-gradient-to-r from-white to-purple-200">
-    <section className="bg-gradient-to-r from-purple-50 via-white to-purple-100">
-      <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center">
-        {/* Left content */}
-        <div className="flex-1 text-center md:text-left mb-8 md:mb-0">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Find Your <span className="text-purple-600">Next Event</span>
-          </h1>
-          <p className="text-lg text-gray-600 mb-6">
-            Discover events, get tickets, and explore what's happening around
-            you.
-          </p>
+    <section
+      className="relative w-screen h-[45vh] md:h-[45vh] bg-cover bg-center text-white flex flex-col justify-center items-center text-center mb-16 md:mb-14 overflow-hidden"
+      style={{
+        backgroundImage:
+          "url('https://images.unsplash.com/photo-1507874457470-272b3c8d8ee2?auto=format&fit=crop&w=1600&q=80')",
+      }}
+    >
+      {/* Overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-purple-900/70 via-black/60 to-black/70"></div>
 
-          {/* ✅ Search now triggers redirect to Browse */}
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-6">
+        <h1 className="text-4xl md:text-5xl font-bold mb-3 drop-shadow-md">
+          Find Your <span className="text-purple-400">Next Event</span>
+        </h1>
+
+        <p className="text-lg md:text-xl mb-6 max-w-2xl text-gray-200">
+          From concerts to workshops — find what’s happening around you.
+        </p>
+
+        {/* Search bar container */}
+        <div className=" max-w-lg bg-white/90 rounded-full">
           <FancySearchBar variant="home" onSearch={onSearch} />
-        </div>
-
-        {/* Right image */}
-        <div className="flex-1 flex justify-center">
-          <img
-            src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=500&q=80"
-            alt="Excited person"
-            loading="lazy"
-            className="rounded-full w-72 h-72 object-cover shadow-lg"
-          />
         </div>
       </div>
     </section>
