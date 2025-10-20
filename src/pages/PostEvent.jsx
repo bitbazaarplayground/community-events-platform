@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EventForm from "../components/EventForm.jsx";
-import { useAuth } from "../context/AuthContext.jsx"; // ✅ get user from context
+import { useAuth } from "../context/AuthContext.jsx";
+import "../styles/PostEvent.css";
 
 export default function PostEvent() {
-  const { user, sessionChecked, userRole } = useAuth(); // ✅ global context
+  const { user, sessionChecked, userRole } = useAuth();
   const [justPosted, setJustPosted] = useState(false);
   const [lastEventTitle, setLastEventTitle] = useState("");
   const navigate = useNavigate();
@@ -19,7 +20,6 @@ export default function PostEvent() {
   const handleGoHome = () => navigate("/");
   const handleMyEvents = () => navigate("/myevents");
 
-  // ✅ Wait for session before rendering
   if (!sessionChecked)
     return <p className="text-center text-gray-500">Loading session...</p>;
 
@@ -38,43 +38,55 @@ export default function PostEvent() {
     );
 
   return (
-    <div className="max-w-lg mx-auto mt-8">
-      <h2 className="text-2xl font-semibold mb-4">Post a New Event</h2>
+    <div className="relative min-h-screen bg-gradient-to-br from-purple-700 via-indigo-700 to-blue-700 overflow-hidden">
+      {/* Animated light overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.15),_transparent_60%)] animate-shimmer" />
 
-      <p className="mb-4 text-gray-600">
-        Posting as{" "}
-        <span className="font-medium">{user.email || "Unknown user"}</span>
-      </p>
+      {/* Hero Section */}
+      <section className="relative z-10 text-center text-white py-24 px-4">
+        <h1 className="text-4xl md:text-5xl font-extrabold mb-3 drop-shadow-lg">
+          Post a New Event
+        </h1>
+        <p className="text-purple-100 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+          Inspire your community — share your workshops, meetups, or concerts
+          and bring people together.
+        </p>
+      </section>
 
-      {justPosted ? (
-        <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-          <p className="text-green-800 mb-3">
-            ✅ Event “{lastEventTitle}” posted!
-          </p>
-          <div className="space-x-4">
-            <button
-              onClick={handlePostAnother}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Post Another
-            </button>
-            <button
-              onClick={handleMyEvents}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-            >
-              My Events
-            </button>
-            <button
-              onClick={handleGoHome}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-            >
-              Go Home
-            </button>
-          </div>
+      {/* Main Content */}
+      <div className="relative z-20 max-w-3xl mx-auto px-6 -mt-10 pb-16">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl border border-purple-100 p-8 hover:shadow-purple-200 transition-all duration-300">
+          {justPosted ? (
+            <div className="bg-gradient-to-r from-green-50 to-green-100 border-l-4 border-green-400 p-5 rounded-lg mb-6 shadow-sm">
+              <p className="text-green-800 mb-3 font-medium">
+                ✅ Event “{lastEventTitle}” posted successfully!
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <button
+                  onClick={handlePostAnother}
+                  className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                >
+                  Post Another
+                </button>
+                <button
+                  onClick={handleMyEvents}
+                  className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                >
+                  My Events
+                </button>
+                <button
+                  onClick={handleGoHome}
+                  className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                >
+                  Go Home
+                </button>
+              </div>
+            </div>
+          ) : (
+            <EventForm onEventCreated={handleEventCreated} />
+          )}
         </div>
-      ) : (
-        <EventForm onEventCreated={handleEventCreated} />
-      )}
+      </div>
     </div>
   );
 }

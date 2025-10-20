@@ -173,81 +173,130 @@ export default function EventForm({ onEventCreated }) {
       </p>
     );
 
-  // ✅ render form as before
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white shadow-md p-6 rounded mb-6 space-y-5"
+      className="bg-white/90 backdrop-blur-md border border-purple-100 rounded-2xl shadow-xl p-8 space-y-6 transition-all duration-300 hover:shadow-2xl"
     >
-      <h3 className="text-lg font-semibold">Create New Event</h3>
+      {/* Header */}
+      <div className="text-center mb-4">
+        <h3 className="text-2xl font-bold text-gray-900">
+          Create a <span className="text-purple-600">New Event</span>
+        </h3>
 
-      {errorMsg && <p className="text-red-500 text-sm -mt-1">{errorMsg}</p>}
+        <p className="text-sm text-gray-500 mt-1">
+          Fill out the details below to share your event with the community.
+        </p>
+      </div>
 
-      <input
-        type="text"
-        placeholder="Event Title"
-        className="w-full border px-4 py-2 rounded"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+      {errorMsg && (
+        <p className="text-red-500 text-sm text-center -mt-2">{errorMsg}</p>
+      )}
 
-      <textarea
-        placeholder="Description"
-        className="w-full border px-4 py-2 rounded"
-        rows={4}
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
-
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Location
-      </label>
-      <LocationAutocomplete
-        value={location}
-        onChange={setLocation}
-        enableSuggestions={true}
-      />
-
-      <div className="flex gap-4">
+      {/* Title */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          Event Title
+        </label>
         <input
-          type="date"
-          className="w-1/2 border px-4 py-2 rounded"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
+          type="text"
+          placeholder="e.g., Manchester Jazz Evenings"
+          className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
         />
-        <input
-          type="time"
-          className="w-1/2 border px-4 py-2 rounded"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
+        <p className="text-xs text-gray-500 mt-1">
+          Keep it short and catchy — up to 60 characters.
+        </p>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          Description
+        </label>
+        <textarea
+          placeholder="Describe your event. Mention highlights or special guests."
+          className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
+          rows={4}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
         />
       </div>
 
-      <select
-        className="w-full border px-4 py-2 rounded"
-        value={categoryId}
-        onChange={(e) => setCategoryId(e.target.value)}
-      >
-        <option value="">Select a category</option>
-        {categories.map((cat) => (
-          <option key={cat.id} value={cat.id}>
-            {cat.name}
-          </option>
-        ))}
-      </select>
+      {/* Location */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          Location
+        </label>
+        <LocationAutocomplete
+          value={location}
+          onChange={setLocation}
+          enableSuggestions={true}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          📍 Include venue name or nearby landmark.
+        </p>
+      </div>
 
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2">
+      {/* Date & Time */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          Date & Time
+        </label>
+        <div className="flex gap-4">
           <input
-            type="checkbox"
-            checked={isPaid}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setIsPaid(checked);
-              if (!checked) setPrice("");
-            }}
+            type="date"
+            className="w-1/2 border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
           />
-          <span className="text-sm">This is a paid event</span>
+          <input
+            type="time"
+            className="w-1/2 border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Category */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          Category
+        </label>
+        <select
+          className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+        >
+          <option value="">Select a category</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Paid Event */}
+      <div className="flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-lg p-3">
+        <input
+          id="paid-checkbox"
+          type="checkbox"
+          checked={isPaid}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            setIsPaid(checked);
+            if (!checked) setPrice("");
+          }}
+          className="accent-purple-600"
+        />
+        <label
+          htmlFor="paid-checkbox"
+          className="text-sm text-gray-700 cursor-pointer"
+        >
+          This is a paid event
         </label>
       </div>
 
@@ -255,29 +304,38 @@ export default function EventForm({ onEventCreated }) {
         <input
           type="number"
           placeholder="Enter ticket price (£)"
-          className="w-full border px-4 py-2 rounded"
+          className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
       )}
 
-      <input
-        type="number"
-        placeholder="Number of seats"
-        className="w-full border px-4 py-2 rounded"
-        value={seats}
-        onChange={(e) => setSeats(e.target.value)}
-      />
+      {/* Seats */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          Number of Seats
+        </label>
+        <input
+          type="number"
+          placeholder="Enter number of available seats"
+          className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
+          value={seats}
+          onChange={(e) => setSeats(e.target.value)}
+        />
+      </div>
 
-      <div className="grid sm:grid-cols-2 gap-4 items-start">
+      {/* Image Upload */}
+      <div className="grid sm:grid-cols-2 gap-6 items-start">
         <div>
-          <label className="block text-sm font-medium mb-1">Upload Image</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Upload Image
+          </label>
 
           <label
             htmlFor="file-upload"
-            className="flex items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg py-4 cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition"
+            className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition"
           >
-            <span className="text-sm text-gray-700 hover:text-purple-600 transition">
+            <span className="text-sm text-gray-600 hover:text-purple-600 transition">
               📁 Click to upload
             </span>
             <input
@@ -297,20 +355,19 @@ export default function EventForm({ onEventCreated }) {
               Selected file: {imageFile.name}
             </p>
           )}
-
           <p className="text-xs text-gray-500 mt-1">
             If you upload a file, it will override any image URL.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
             Or Image URL (optional)
           </label>
           <input
             type="url"
             placeholder="https://…"
-            className="w-full border px-3 py-2 rounded"
+            className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
             value={remoteImageUrl}
             onChange={(e) => {
               setRemoteImageUrl(e.target.value);
@@ -320,28 +377,34 @@ export default function EventForm({ onEventCreated }) {
         </div>
       </div>
 
+      {/* Image Preview */}
       {imagePreview && (
-        <div className="mt-2">
+        <div className="mt-3">
           <img
             src={imagePreview}
             alt="Event preview"
-            className="w-full max-w-md rounded shadow-sm"
+            className="w-full max-w-md rounded-xl border border-gray-200 shadow-sm"
           />
         </div>
       )}
+
+      {/* Status Message */}
       {statusMsg && (
         <p className="text-sm text-gray-600 italic mb-2 text-center">
           {statusMsg}
         </p>
       )}
 
-      <button
-        type="submit"
-        className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition disabled:opacity-60"
-        disabled={loading}
-      >
-        {loading ? "Saving..." : "Save Event"}
-      </button>
+      {/* Submit Button */}
+      <div className="pt-4">
+        <button
+          type="submit"
+          className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-md hover:from-purple-700 hover:to-indigo-700 transition disabled:opacity-60"
+          disabled={loading}
+        >
+          {loading ? "Saving..." : "Save Event"}
+        </button>
+      </div>
     </form>
   );
 }
