@@ -46,7 +46,7 @@ function AppRoutes() {
   return (
     <>
       <Navbar user={user} role={userRole} onLogout={logout} />
-      <main className="p-4">
+      <main>
         <Suspense
           fallback={
             <div className="flex justify-center mt-10 text-purple-600">
