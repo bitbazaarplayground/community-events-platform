@@ -278,7 +278,7 @@ export default function EventCard({
   }
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 flex flex-col h-full justify-between">
+    <div className="bg-white/80 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-purple-100 flex flex-col h-full justify-between">
       {/* Image */}
       <div className="relative">
         <img

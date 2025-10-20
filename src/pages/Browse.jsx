@@ -292,146 +292,149 @@ export default function Browse() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero */}
-      <section className="bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-600 text-white py-30 relative overflow-hidden">
-        <div className="max-w-5xl mx-auto px-6 text-center translate-y-[-40%] relative z-10">
-          <h2 className="text-lg font-semibold text-purple-200">
-            Find Your Next Experience
+    <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#6D28D9_0%,_#4F46E5_35%,_#1E3A8A_80%)]">
+      <div className="min-h-screen bg-gray-50/70 backdrop-blur-sm">
+        {/* Hero */}
+        <section className="bg-gradient-to-br from-[#7C3AED] via-[#5B21B6] to-[#1E40AF] text-white py-32 relative overflow-hidden">
+          <div className="max-w-5xl mx-auto px-6 text-center translate-y-[-40%] relative z-10">
+            <h2 className="text-lg font-semibold text-purple-200">
+              Find Your Next Experience
+            </h2>
+            <h1 className="text-4xl md:text-5xl font-extrabold mt-2">
+              Discover & Promote <br /> Upcoming Events
+            </h1>
+          </div>
+
+          {/* Floating Search Bar */}
+          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-[-90%] w-full max-w-4xl px-6 z-20">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-100 hover:shadow-xl transition">
+              <FancySearchBar variant="browse" onSearch={handleSearch} />
+            </div>
+          </div>
+        </section>
+
+        {/* Results */}
+        <section className="max-w-6xl mx-auto px-6 py-10">
+          <h2 className="text-center text-2xl md:text-3xl font-bold text-gray-900">
+            Featured Events
           </h2>
-          <h1 className="text-4xl md:text-5xl font-extrabold mt-2">
-            Discover & Promote <br /> Upcoming Events
-          </h1>
-        </div>
+          <p className="text-center text-gray-500 mb-10">
+            Upcoming events you won’t want to miss
+          </p>
+          {tmUnavailable && (
+            <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 text-center py-3 px-4 rounded mb-8">
+              ⚠️ Some external events (Ticketmaster) are temporarily
+              unavailable. Local events from our community are still visible —
+              please try again later.
+            </div>
+          )}
 
-        {/* Floating Search Bar */}
-        <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-[-90%] w-full max-w-4xl px-6 z-20">
-          <div className="bg-white rounded-lg shadow-lg border border-gray-100 hover:shadow-xl transition">
-            <FancySearchBar variant="browse" onSearch={handleSearch} />
-          </div>
-        </div>
-      </section>
-
-      {/* Results */}
-      <section className="max-w-6xl mx-auto px-6 py-10">
-        <h2 className="text-center text-2xl md:text-3xl font-bold text-gray-900">
-          Featured Events
-        </h2>
-        <p className="text-center text-gray-500 mb-10">
-          Upcoming events you won’t want to miss
-        </p>
-        {tmUnavailable && (
-          <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 text-center py-3 px-4 rounded mb-8">
-            ⚠️ Some external events (Ticketmaster) are temporarily unavailable.
-            Local events from our community are still visible — please try again
-            later.
-          </div>
-        )}
-
-        <AnimatePresence mode="wait">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {events.length === 0 ? (
-              <p className="col-span-full text-center text-gray-600">
-                No events available
-              </p>
-            ) : (
-              events.map((ev) => (
-                <motion.div
-                  key={`${ev.external_source || "local"}-${ev.id}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <EventCard
-                    id={ev.id}
-                    title={ev.title}
-                    date={ev.date_time}
-                    price={ev.price}
-                    is_paid={ev.is_paid}
-                    location={ev.location}
-                    description={ev.description}
-                    category={ev.category}
-                    seats_left={ev.seats_left}
-                    image_url={ev.image_url}
-                    creatorId={ev.creatorId}
-                    external_source={ev.external_source}
-                    external_url={ev.external_url}
-                    external_organizer={ev.external_organizer}
-                    extraCount={ev.extraCount}
-                    extraDates={ev.extraDates}
-                    extra_dates={ev.extra_dates}
-                  />
-                </motion.div>
-              ))
-            )}
-          </div>
-        </AnimatePresence>
-
-        {canLoadMore && (
-          <div className="flex justify-center mt-12">
-            <button
-              onClick={() => {
-                if (loading) return;
-
-                // Try using prefetched Ticketmaster page first
-                const cachedNext = localStorage.getItem("nextTmPage");
-                if (cachedNext) {
-                  try {
-                    const { filters: cachedFilters, data } =
-                      JSON.parse(cachedNext);
-                    if (
-                      JSON.stringify(cachedFilters) === JSON.stringify(filters)
-                    ) {
-                      setEvents((prev) => [...prev, ...data.events]);
-                      setTmPage(data.nextPage || tmPage);
-                      setTmHasMore(data.hasMore);
-                      localStorage.removeItem("nextTmPage");
-                      return;
-                    }
-                  } catch (err) {
-                    console.warn("⚠️ Failed to use prefetched data:", err);
-                    localStorage.removeItem("nextTmPage");
-                  }
-                }
-
-                // Fallback
-                fetchEvents(filters);
-              }}
-              disabled={loading}
-              className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition flex items-center gap-2 disabled:opacity-70"
-            >
-              {loading ? (
-                <>
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    ></path>
-                  </svg>
-                  Loading...
-                </>
+          <AnimatePresence mode="wait">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {events.length === 0 ? (
+                <p className="col-span-full text-center text-gray-600">
+                  No events available
+                </p>
               ) : (
-                "See More Events →"
+                events.map((ev) => (
+                  <motion.div
+                    key={`${ev.external_source || "local"}-${ev.id}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <EventCard
+                      id={ev.id}
+                      title={ev.title}
+                      date={ev.date_time}
+                      price={ev.price}
+                      is_paid={ev.is_paid}
+                      location={ev.location}
+                      description={ev.description}
+                      category={ev.category}
+                      seats_left={ev.seats_left}
+                      image_url={ev.image_url}
+                      creatorId={ev.creatorId}
+                      external_source={ev.external_source}
+                      external_url={ev.external_url}
+                      external_organizer={ev.external_organizer}
+                      extraCount={ev.extraCount}
+                      extraDates={ev.extraDates}
+                      extra_dates={ev.extra_dates}
+                    />
+                  </motion.div>
+                ))
               )}
-            </button>
-          </div>
-        )}
-      </section>
-    </div>
+            </div>
+          </AnimatePresence>
+
+          {canLoadMore && (
+            <div className="flex justify-center mt-12">
+              <button
+                onClick={() => {
+                  if (loading) return;
+
+                  // Try using prefetched Ticketmaster page first
+                  const cachedNext = localStorage.getItem("nextTmPage");
+                  if (cachedNext) {
+                    try {
+                      const { filters: cachedFilters, data } =
+                        JSON.parse(cachedNext);
+                      if (
+                        JSON.stringify(cachedFilters) ===
+                        JSON.stringify(filters)
+                      ) {
+                        setEvents((prev) => [...prev, ...data.events]);
+                        setTmPage(data.nextPage || tmPage);
+                        setTmHasMore(data.hasMore);
+                        localStorage.removeItem("nextTmPage");
+                        return;
+                      }
+                    } catch (err) {
+                      console.warn("⚠️ Failed to use prefetched data:", err);
+                      localStorage.removeItem("nextTmPage");
+                    }
+                  }
+
+                  // Fallback
+                  fetchEvents(filters);
+                }}
+                disabled={loading}
+                className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition flex items-center gap-2 disabled:opacity-70"
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                    Loading...
+                  </>
+                ) : (
+                  "See More Events →"
+                )}
+              </button>
+            </div>
+          )}
+        </section>
+      </div>
+    </section>
   );
 }
