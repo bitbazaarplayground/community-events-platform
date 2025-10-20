@@ -282,7 +282,8 @@ export default function FancySearchBar({
           }
         }}
         onKeyDown={handleKeyDown}
-        className="w-full border rounded-full px-4 py-3 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+        className="w-full border-none text-gray-900 placeholder-gray-500 rounded-full px-4 py-3 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-transparent"
+        placeholder={userTyped ? "Search..." : ""}
         aria-label="Search"
       />
 
