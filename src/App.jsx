@@ -5,7 +5,7 @@ import Navbar from "./components/Navbar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
-import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
 
 const Auth = lazy(() => import("./pages/Auth.jsx"));
@@ -34,16 +34,26 @@ const TermsOfService = lazy(() =>
 function AppRoutes() {
   const { user, userRole, logout, sessionChecked } = useAuth();
 
+  // 🟣 Show a friendly loader instead of a blank screen
   if (!sessionChecked) {
-    // Wait silently for Supabase to restore the session
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 to-white text-purple-700 font-semibold text-lg">
+        Loading Community Events Platform…
+      </div>
+    );
   }
 
   return (
     <>
       <Navbar user={user} role={userRole} onLogout={logout} />
       <main className="p-4">
-        <Suspense fallback={<div className="text-center mt-8">Loading...</div>}>
+        <Suspense
+          fallback={
+            <div className="flex justify-center mt-10 text-purple-600">
+              Loading page…
+            </div>
+          }
+        >
           <Routes>
             <Route path="/" element={<Home />} />
             <Route
@@ -135,9 +145,9 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
+    <>
       <ToastMessage />
       <AppRoutes />
-    </AuthProvider>
+    </>
   );
 }
