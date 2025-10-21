@@ -46,7 +46,7 @@ export default function Browse() {
         const { filters: cachedFilters } = JSON.parse(cachedNext);
         // compare old cached filters to current ones
         if (JSON.stringify(cachedFilters) !== JSON.stringify(newFilters)) {
-          // console.log("🧹Clearing outdated prefetched data (filters changed)");
+          // console.log("Clearing outdated prefetched data (filters changed)");
           localStorage.removeItem("nextTmPage");
         }
       } catch {
@@ -56,7 +56,6 @@ export default function Browse() {
 
     const applied = reset ? newFilters : filters;
 
-    // 🔧 FIX: Ensure categoryLabel is populated if only category ID is present
     if (applied.category && !applied.categoryLabel) {
       const { data: cat, error } = await supabase
         .from("categories")
@@ -74,7 +73,7 @@ export default function Browse() {
     const to = from + PAGE_SIZE - 1;
 
     try {
-      // === 1️⃣ Local events from Supabase ===
+      // === Local events from Supabase ===
       let q = supabase
         .from("events")
         .select(
@@ -112,7 +111,7 @@ export default function Browse() {
         extra_dates: row.extra_dates || [],
       }));
 
-      // === 2️⃣ Ticketmaster events ===
+      // === Ticketmaster events ===
       let ticketmaster = [];
       let tmRes = { events: [], nextPage: 0, hasMore: false };
 
@@ -122,7 +121,6 @@ export default function Browse() {
             ? TM_SEGMENT_MAP[applied.categoryLabel]
             : "";
 
-        // ✅ Update the already-declared tmRes
         tmRes = await searchTicketmaster(
           {
             q: applied.event || "",
@@ -133,21 +131,21 @@ export default function Browse() {
         );
 
         ticketmaster = tmRes?.events || [];
-        setTmUnavailable(false); // ✅ API responded fine
+        setTmUnavailable(false);
       } catch (err) {
         console.error("⚠️ Ticketmaster API unavailable:", err.message);
-        setTmUnavailable(true); // ⚠️ Mark API as down
+        setTmUnavailable(true);
         ticketmaster = [];
       }
 
-      /// === 3️⃣ Dedupe Ticketmaster events ===
+      /// === Dedupe Ticketmaster events ===
       const hasKeyword = Boolean(applied.event?.trim());
       const hasAnyFilter =
         hasKeyword ||
         Boolean(applied.location?.trim()) ||
         Boolean(applied.categoryLabel?.trim());
 
-      // Normalize helper: strips times, punctuation, etc.
+      // Helper
       const normalizeText = (str = "") =>
         str
           .toLowerCase()
@@ -159,7 +157,7 @@ export default function Browse() {
           .replace(/\s+/g, " ")
           .trim();
 
-      // ✅ Only dedupe if browsing by category/location (not keyword)
+      // Dedupe
       if (!hasKeyword) {
         const grouped = {};
 
@@ -194,10 +192,10 @@ export default function Browse() {
         }));
       }
 
-      // === 4️⃣ Combine both sources ===
+      // === Combine both sources ===
       let combined = [...local, ...ticketmaster];
 
-      // === 5️⃣ Sort or shuffle depending on filters ===
+      // === Sort or shuffle depending on filters ===
       if (!hasAnyFilter && reset) {
         combined = combined.sort(() => Math.random() - 0.5);
       } else {
@@ -208,7 +206,7 @@ export default function Browse() {
         });
       }
 
-      // === 6️⃣ Interleave local + Ticketmaster events ===
+      // === Interleave local + Ticketmaster events ===
       const localEvents = combined.filter((e) => !e.external_source);
       const tmEvents = combined.filter(
         (e) => e.external_source === "ticketmaster"
@@ -229,7 +227,7 @@ export default function Browse() {
         }
       }
 
-      // === 7️⃣ Save results ===
+      // === Save results ===
       if (reset) {
         setEvents(interleaved);
         setPage(1);
@@ -267,7 +265,7 @@ export default function Browse() {
     } catch (err) {
       console.error("fetchEvents failed:", err);
     } finally {
-      await new Promise((res) => setTimeout(res, 300)); // smooth out flicker
+      await new Promise((res) => setTimeout(res, 300));
       setLoading(false);
     }
   };
@@ -275,7 +273,6 @@ export default function Browse() {
   // Initial fetch
   useEffect(() => {
     fetchEvents({}, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const canLoadMore = useMemo(
@@ -287,15 +284,29 @@ export default function Browse() {
       if (loading) return;
       fetchEvents(filters, true);
     },
-    [loading] // ✅ re-creates only when loading changes
+    [loading]
   );
 
   return (
-    <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#6D28D9_0%,_#4F46E5_35%,_#1E3A8A_80%)]">
-      <div className="min-h-screen bg-gray-50/70 backdrop-blur-sm">
-        {/* Hero */}
-        <section className="bg-gradient-to-br from-[#7C3AED] via-[#5B21B6] to-[#1E40AF] text-white py-32 relative overflow-hidden">
-          <div className="max-w-5xl mx-auto px-6 text-center translate-y-[-40%] relative z-10">
+    <>
+      {/* Browse Hero + Results Section */}
+      <section className="w-full">
+        {/*Background Video */}
+        <section className="relative text-white py-32 overflow-hidden">
+          <video
+            className="absolute inset-0 w-full h-full object-cover"
+            src="/video/Fireworks.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+
+          {/* Overlay*/}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#000000]/20 via-[#1E1B4B]/30 to-[#312E81]/25"></div>
+
+          {/* Hero Content */}
+          <div className="relative z-10 max-w-5xl mx-auto px-6 text-center translate-y-[-40%]">
             <h2 className="text-lg font-semibold text-purple-200">
               Find Your Next Experience
             </h2>
@@ -312,14 +323,29 @@ export default function Browse() {
           </div>
         </section>
 
-        {/* Results */}
-        <section className="max-w-6xl mx-auto px-6 py-10">
+        {/* Divider */}
+        <div className="relative">
+          <svg
+            className="absolute top-0 left-0 w-full h-16 text-white"
+            preserveAspectRatio="none"
+            viewBox="0 0 1440 320"
+          >
+            <path
+              fill="currentColor"
+              d="M0,192L80,181.3C160,171,320,149,480,160C640,171,800,213,960,229.3C1120,245,1280,235,1360,229.3L1440,224V320H1360C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320H0Z"
+            ></path>
+          </svg>
+        </div>
+
+        {/* Results Section */}
+        <section className="bg-white max-w-6xl mx-auto px-6 py-16 relative z-10">
           <h2 className="text-center text-2xl md:text-3xl font-bold text-gray-900">
             Featured Events
           </h2>
           <p className="text-center text-gray-500 mb-10">
             Upcoming events you won’t want to miss
           </p>
+
           {tmUnavailable && (
             <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 text-center py-3 px-4 rounded mb-8">
               ⚠️ Some external events (Ticketmaster) are temporarily
@@ -374,7 +400,6 @@ export default function Browse() {
                 onClick={() => {
                   if (loading) return;
 
-                  // Try using prefetched Ticketmaster page first
                   const cachedNext = localStorage.getItem("nextTmPage");
                   if (cachedNext) {
                     try {
@@ -396,7 +421,6 @@ export default function Browse() {
                     }
                   }
 
-                  // Fallback
                   fetchEvents(filters);
                 }}
                 disabled={loading}
@@ -433,7 +457,7 @@ export default function Browse() {
             </div>
           )}
         </section>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
