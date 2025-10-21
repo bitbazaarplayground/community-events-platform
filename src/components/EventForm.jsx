@@ -11,12 +11,14 @@ export default function EventForm({ onEventCreated }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("12:30");
+
   const [isPaid, setIsPaid] = useState(false);
   const [price, setPrice] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [seats, setSeats] = useState("");
+  //Dates
+
+  const [dates, setDates] = useState([{ date: "", time: "12:30" }]);
 
   // Image handling
   const [imageFile, setImageFile] = useState(null);
@@ -30,7 +32,7 @@ export default function EventForm({ onEventCreated }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Fetch categories only once after session is ready
+  // Fetch categories only once after session is ready
   useEffect(() => {
     if (!sessionChecked) return;
     const fetchCategories = async () => {
@@ -50,20 +52,63 @@ export default function EventForm({ onEventCreated }) {
     return "";
   }, [imageFile, remoteImageUrl]);
 
-  // Validate form
+  // Validate
+  const cleanTime = (val) => (val || "").replace(/\s/g, "");
+  const isValidTime = (val) => /^\d{2}:\d{2}$/.test(val);
+
   const validate = () => {
+    // Trim and basic text fields
     if (!title.trim()) return "Title is required.";
     if (!description.trim()) return "Description is required.";
     if (!location.trim()) return "Location is required.";
-    if (!date) return "Date is required.";
-    if (!time) return "Time is required.";
+
+    // Dates array checks
+    if (!dates.length || !dates[0].date)
+      return "At least one event date is required.";
+    if (!dates[0].time)
+      return "Please specify a start time for the first date.";
+
+    // Ensure correct HH:MM format
+    if (!isValidTime(dates[0].time))
+      return "Time must be in HH:MM (24h) format.";
+
+    // Category & seat validation
     if (!categoryId) return "Category is required.";
     if (!seats || isNaN(seats) || parseInt(seats) <= 0)
       return "Seats must be a positive number.";
+
+    // Paid event validation
     if (isPaid && (!price || isNaN(price) || parseFloat(price) <= 0))
       return "Price must be a positive number for paid events.";
+
+    // User must be logged in
     if (!user?.id) return "You must be logged in to post an event.";
+
+    // No errors
     return null;
+  };
+
+  const addDate = () => {
+    const last = dates[dates.length - 1];
+    setDates([
+      ...dates,
+      {
+        date: last?.date || "",
+        time: last?.time || "12:30",
+      },
+    ]);
+  };
+
+  const removeDate = (index) => {
+    setDates(dates.filter((_, i) => i !== index));
+  };
+
+  const handleDateChange = (index, field, value) => {
+    const updated = [...dates];
+    let v = value;
+    if (field === "time") v = cleanTime(value);
+    updated[index][field] = v;
+    setDates(updated);
   };
 
   const handleSubmit = async (e) => {
@@ -77,7 +122,7 @@ export default function EventForm({ onEventCreated }) {
     }
 
     setLoading(true);
-    const dateTime = `${date}T${time}:00`;
+    const dateTime = `${dates[0].date}T${dates[0].time}:00`;
     let image_url = null;
 
     // Upload image (simple upload, no compression)
@@ -118,6 +163,11 @@ export default function EventForm({ onEventCreated }) {
       image_url = remoteImageUrl;
     }
 
+    const normalizedDates = dates.map((d) => ({
+      date: d.date ? new Date(d.date).toISOString().split("T")[0] : "",
+      time: d.time || "",
+    }));
+
     // Prepare event data
     const finalPrice = isPaid ? parseFloat(price) || 0 : 0;
     const payload = {
@@ -125,11 +175,12 @@ export default function EventForm({ onEventCreated }) {
       description,
       location,
       date_time: dateTime,
+      extra_dates: normalizedDates,
       price: finalPrice,
       is_paid: isPaid,
       seats: parseInt(seats),
       seats_left: parseInt(seats),
-      created_by: user.id, // ✅ now comes from context
+      created_by: user.id,
       image_url,
       category_id: categoryId,
       external_source: null,
@@ -150,8 +201,6 @@ export default function EventForm({ onEventCreated }) {
       setTitle("");
       setDescription("");
       setLocation("");
-      setDate("");
-      setTime("12:30");
       setPrice("");
       setSeats("");
       setIsPaid(false);
@@ -163,7 +212,7 @@ export default function EventForm({ onEventCreated }) {
     }
   };
 
-  // ✅ Prevent rendering if session not ready
+  // Prevent rendering if session not ready
   if (!sessionChecked)
     return <p className="text-center text-gray-500">Loading session...</p>;
   if (!user)
@@ -208,6 +257,9 @@ export default function EventForm({ onEventCreated }) {
         <p className="text-xs text-gray-500 mt-1">
           Keep it short and catchy — up to 60 characters.
         </p>
+        {errorMsg === "Title is required." && (
+          <p className="text-xs text-red-500 mt-1">Please enter a title.</p>
+        )}
       </div>
 
       {/* Description */}
@@ -222,6 +274,11 @@ export default function EventForm({ onEventCreated }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+        {errorMsg === "Description is required." && (
+          <p className="text-xs text-red-500 mt-1">
+            Please add a short description.
+          </p>
+        )}
       </div>
 
       {/* Location */}
@@ -239,25 +296,62 @@ export default function EventForm({ onEventCreated }) {
         </p>
       </div>
 
-      {/* Date & Time */}
-      <div>
+      {/* Multiple Dates Section */}
+      <div className="space-y-3">
         <label className="block text-sm font-semibold text-gray-700 mb-1">
-          Date & Time
+          Event Dates & Times
         </label>
-        <div className="flex gap-4">
-          <input
-            type="date"
-            className="w-1/2 border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-          <input
-            type="time"
-            className="w-1/2 border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-        </div>
+
+        {dates.map((d, i) => (
+          <div key={i} className="flex gap-3 items-center">
+            <input
+              type="date"
+              value={d.date}
+              onChange={(e) => handleDateChange(i, "date", e.target.value)}
+              className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none w-1/2"
+            />
+            <input
+              type="time"
+              step="60"
+              value={d.time}
+              onChange={(e) => handleDateChange(i, "time", e.target.value)}
+              className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none w-1/2"
+            />
+
+            {i > 0 && (
+              <button
+                type="button"
+                onClick={() => removeDate(i)}
+                className="text-red-500 text-sm hover:underline"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={addDate}
+          className="text-purple-600 text-sm font-medium hover:underline"
+        >
+          + Add another date
+        </button>
+        {errorMsg === "At least one event date is required." && (
+          <p className="text-xs text-red-500 mt-1">
+            Please add at least one date.
+          </p>
+        )}
+        {errorMsg === "Please specify a start time for the first date." && (
+          <p className="text-xs text-red-500 mt-1">
+            Please include a start time for your first date.
+          </p>
+        )}
+        {errorMsg === "Time must be in HH:MM (24h) format." && (
+          <p className="text-xs text-red-500 mt-1">
+            Use 24-hour format like <strong>13:30</strong>.
+          </p>
+        )}
       </div>
 
       {/* Category */}
@@ -322,6 +416,11 @@ export default function EventForm({ onEventCreated }) {
           value={seats}
           onChange={(e) => setSeats(e.target.value)}
         />
+        {errorMsg === "Seats must be a positive number." && (
+          <p className="text-xs text-red-500 mt-1">
+            Please enter a valid seat number.
+          </p>
+        )}
       </div>
 
       {/* Image Upload */}

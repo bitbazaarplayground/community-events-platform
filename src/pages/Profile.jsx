@@ -202,7 +202,6 @@ export default function Profile() {
     }
   };
 
-  // Render
   return (
     <Container>
       <div className="py-8">

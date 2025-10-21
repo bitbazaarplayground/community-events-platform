@@ -169,30 +169,37 @@ export default function UserDashboard() {
     );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-10">
-      {/* Profile Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6 text-white shadow">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    <div className="max-w-6xl mx-auto px-4 py-10 space-y-12">
+      {/* 🌟 Dashboard Header */}
+      <div className="relative bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-2xl p-8 text-white shadow-lg overflow-hidden">
+        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm rounded-2xl"></div>
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Avatar + Info */}
+          <div className="flex items-center gap-5">
             <img
               src={profile?.avatar_url || avatarFromName(fullName)}
               alt={fullName}
-              className="w-16 h-16 rounded-full object-cover border-2 border-white"
+              className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = avatarFromName(fullName);
               }}
             />
             <div>
-              <h2 className="text-2xl font-bold">{fullName}</h2>
-              <p className="opacity-90">
+              <h2 className="text-3xl font-bold drop-shadow-sm">
+                Welcome back,{" "}
+                <span className="text-purple-200">{fullName || "User"}</span>
+              </h2>
+              <p className="opacity-90 text-sm md:text-base">
                 {profile?.username ? `@${profile.username}` : user.email}
               </p>
             </div>
           </div>
+
+          {/* Edit button */}
           <button
             onClick={() => navigate("/profile/edit")}
-            className="px-4 py-2 bg-white text-purple-700 font-semibold rounded-lg hover:bg-gray-100 transition"
+            className="px-5 py-2.5 bg-white text-purple-700 font-semibold rounded-lg hover:bg-gray-100 transition shadow-md"
           >
             Edit Profile
           </button>
