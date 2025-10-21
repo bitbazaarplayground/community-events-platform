@@ -6,12 +6,18 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
 import Footer from "./components/footer/Footer.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import { BasketProvider } from "./context/BasketContext.jsx";
+import { UIProvider } from "./context/UIContext.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
+import Basket from "./pages/Basket.jsx";
 
+// Preload critical routes immediately
+import Browse from "./pages/Browse.jsx";
+import Home from "./pages/Home.jsx";
+
+// 💤 Lazy-load less critical pages only
 const Auth = lazy(() => import("./pages/Auth.jsx"));
-const Browse = lazy(() => import("./pages/Browse.jsx"));
 const Cancel = lazy(() => import("./pages/Cancel.jsx"));
-const Home = lazy(() => import("./pages/Home.jsx"));
 const MyEvents = lazy(() => import("./pages/MyEvents.jsx"));
 const MyTickets = lazy(() => import("./pages/MyTickets.jsx"));
 const PastEvents = lazy(() => import("./pages/PastEvents.jsx"));
@@ -34,11 +40,11 @@ const TermsOfService = lazy(() =>
 function AppRoutes() {
   const { user, userRole, logout, sessionChecked } = useAuth();
 
-  // 🟣 Show a friendly loader instead of a blank screen
+  // 🟣 Prevent flicker — display fast minimal loader
   if (!sessionChecked) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 to-white text-purple-700 font-semibold text-lg">
-        Loading Community Events Platform…
+      <div className="flex items-center justify-center min-h-screen text-purple-700 font-semibold text-lg">
+        <div className="animate-pulse">Loading Community Events Platform…</div>
       </div>
     );
   }
@@ -46,21 +52,24 @@ function AppRoutes() {
   return (
     <>
       <Navbar user={user} role={userRole} onLogout={logout} />
-      <main>
+      <main className="min-h-[calc(100vh-8rem)]">
         <Suspense
           fallback={
-            <div className="flex justify-center mt-10 text-purple-600">
+            <div className="flex justify-center mt-10 text-purple-600 animate-pulse">
               Loading page…
             </div>
           }
         >
           <Routes>
+            {/* ⚡ Preloaded core routes */}
             <Route path="/" element={<Home />} />
+            <Route path="/browse" element={<Browse />} />
+
+            {/* 🧭 Auth & Protected Routes */}
             <Route
               path="/auth"
               element={user ? <Navigate to="/" /> : <Auth />}
             />
-            <Route path="/browse" element={<Browse />} />
             <Route
               path="/post"
               element={
@@ -125,6 +134,9 @@ function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+
+            {/* 🧺 Basket & Other Pages */}
+            <Route path="/basket" element={<Basket />} />
             <Route path="/verify/:ticketId" element={<VerifyTicket />} />
             <Route path="/success" element={<Success />} />
             <Route path="/cancel" element={<Cancel />} />
@@ -145,9 +157,11 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <>
-      <ToastMessage />
-      <AppRoutes />
-    </>
+    <UIProvider>
+      <BasketProvider>
+        <ToastMessage />
+        <AppRoutes />
+      </BasketProvider>
+    </UIProvider>
   );
 }

@@ -1,9 +1,9 @@
 // netlify/functions/create-checkout-session.js
-
+// netlify/functions/create-checkout-session.js
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL =
   process.env.SITE_URL || "https://communityeventsplatform.netlify.app";
 
@@ -11,6 +11,7 @@ const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
 export async function handler(event) {
   // ✅ Handle CORS preflight
   if (event.httpMethod === "OPTIONS") {
@@ -28,83 +29,99 @@ export async function handler(event) {
   console.log("🔑 Stripe key detected:", !!process.env.STRIPE_SECRET_KEY);
 
   try {
+    const body = JSON.parse(event.body);
     const {
+      items,
       title,
       price,
       eventId,
       userEmail,
       eventDate,
       quantity = 1,
-    } = JSON.parse(event.body);
-    console.log("📦 Parsed request:", {
-      title,
-      price,
-      eventId,
-      userEmail,
-      eventDate,
-      quantity,
-    });
+    } = body;
 
-    if (!title || !price || isNaN(price)) {
+    // 🧾 Normalize input: support single item OR multiple items
+    const basketItems =
+      Array.isArray(items) && items.length > 0
+        ? items
+        : [
+            {
+              eventId,
+              title,
+              price,
+              eventDate,
+              quantity,
+            },
+          ];
+
+    if (!basketItems || basketItems.length === 0) {
       return {
         statusCode: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ error: "Invalid event data" }),
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "No valid items found in request" }),
       };
     }
+
+    console.log("🛒 Checkout items:", basketItems);
+
+    // ✅ Validate all basket items exist and have enough seats
+    for (const item of basketItems) {
+      const { data: eventData, error: fetchError } = await supabase
+        .from("events")
+        .select("seats_left")
+        .eq("id", item.eventId)
+        .single();
+
+      if (fetchError || !eventData) {
+        console.error("❌ Event not found:", item.eventId);
+        return {
+          statusCode: 404,
+          headers: { "Access-Control-Allow-Origin": "*" },
+          body: JSON.stringify({ error: `Event not found: ${item.title}` }),
+        };
+      }
+
+      if (item.quantity > eventData.seats_left) {
+        return {
+          statusCode: 400,
+          headers: { "Access-Control-Allow-Origin": "*" },
+          body: JSON.stringify({
+            error: `Not enough tickets left for "${item.title}". Only ${eventData.seats_left} available.`,
+          }),
+        };
+      }
+    }
+
+    // ✅ Create Stripe line items
+    const line_items = basketItems.map((item) => ({
+      price_data: {
+        currency: "gbp",
+        product_data: {
+          name: item.title,
+          description: item.eventDate
+            ? `Event on ${new Date(item.eventDate).toLocaleDateString()}`
+            : "Event Ticket",
+        },
+        unit_amount: Math.round(Number(item.price) * 100),
+      },
+      quantity: item.quantity,
+    }));
 
     // ✅ Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       customer_email: userEmail,
-      line_items: [
-        {
-          price_data: {
-            currency: "gbp",
-            product_data: { name: title, description: `Event on ${eventDate}` },
-            unit_amount: Math.round(Number(price) * 100),
-          },
-          quantity,
-        },
-      ],
-      metadata: {
-        event_id: eventId,
-        event_title: title,
-        event_date: eventDate,
-        quantity,
-      },
+      line_items,
       success_url: `${SITE_URL}/success`,
       cancel_url: `${SITE_URL}/cancel`,
+      metadata: {
+        event_ids: basketItems.map((i) => i.eventId).join(", "),
+        event_titles: basketItems.map((i) => i.title).join(", "),
+      },
     });
-    // 🛑 Check available seats before allowing checkout
-    const { data: eventData, error: fetchError } = await supabase
-      .from("events")
-      .select("seats_left")
-      .eq("id", eventId)
-      .single();
 
-    if (fetchError || !eventData) {
-      console.error("❌ Error fetching event:", fetchError?.message);
-      return {
-        statusCode: 404,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ error: "Event not found" }),
-      };
-    }
-
-    // ❗ Prevent overbooking
-    if (quantity > eventData.seats_left) {
-      return {
-        statusCode: 400,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({
-          error: `Not enough tickets left. Only ${eventData.seats_left} available.`,
-        }),
-      };
-    }
+    console.log("✅ Stripe session created:", session.id);
 
     return {
       statusCode: 200,

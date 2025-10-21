@@ -8,7 +8,7 @@ import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { searchTicketmaster } from "../lib/ticketmaster.js";
-import { supabase } from "../supabaseClient.js";
+import { supabase } from "../supabaseClient.js"; // still used for Discover only
 
 import "../styles/swiper.css";
 
@@ -37,7 +37,7 @@ export default function UserDashboard() {
   const [discoverEvents, setDiscoverEvents] = useState([]);
   const [loadingDiscover, setLoadingDiscover] = useState(true);
 
-  // Ensure saved events are fetched once if not loaded
+  // ✅ Ensure saved events are fetched once if not loaded
   useEffect(() => {
     if (sessionChecked && user && savedEvents.length === 0) {
       fetchSavedEvents();
@@ -170,7 +170,7 @@ export default function UserDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-12">
-      {/* Dashboard Header */}
+      {/* 🌟 Dashboard Header */}
       <div className="relative bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-2xl p-8 text-white shadow-lg overflow-hidden">
         <div className="absolute inset-0 bg-black/10 backdrop-blur-sm rounded-2xl"></div>
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -208,7 +208,7 @@ export default function UserDashboard() {
 
       {/* Sections */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Section title="My Events">
+        <Section title="My Tickets">
           <SectionCard
             link="/me/events"
             imgSrc={IMG_MY_EVENTS}
