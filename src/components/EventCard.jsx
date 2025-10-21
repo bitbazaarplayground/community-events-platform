@@ -4,9 +4,13 @@ import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { useEffect, useState } from "react";
 import { FaCalendar } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { useBasket } from "../context/BasketContext.jsx";
+import { useUI } from "../context/UIContext.jsx";
 import { buildGoogleCalendarUrl } from "../lib/calendar.js";
 import { signUpForEvent } from "../lib/signups.js";
 import "../styles/EventCard.css";
+
 import { supabase } from "../supabaseClient.js";
 
 const FALLBACK_IMAGE = "https://placehold.co/600x360?text=Event";
@@ -30,6 +34,7 @@ export default function EventCard({
   extraDates, //TM
   extra_dates, //db
 }) {
+  const navigate = useNavigate();
   const [creator, setCreator] = useState(null);
   const [signing, setSigning] = useState(false);
   const [user, setUser] = useState(null);
@@ -41,6 +46,9 @@ export default function EventCard({
   // Extra dates
   const [showDates, setShowDates] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  // Basket
+  const { addToBasket } = useBasket();
+  const { setBasketOpen } = useUI();
 
   const toggleDates = () => {
     setShowDates((prev) => !prev);
@@ -125,6 +133,43 @@ export default function EventCard({
     return () =>
       window.removeEventListener("updateEventDate", handleDateUpdate);
   }, [id]);
+
+  //  Stripe checkout
+
+  const handleCheckout = async ({ id, title, price, date, quantity, user }) => {
+    const baseUrl =
+      window.location.hostname === "localhost"
+        ? "http://localhost:8888"
+        : window.location.origin;
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/.netlify/functions/create-checkout-session`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId: id,
+            title: title || "Untitled Event",
+            price: Number(price) || 0,
+            userEmail: user.email,
+            eventDate: date || new Date().toISOString(),
+            quantity,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("⚠️ Payment failed to initialize.");
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      alert("⚠️ Payment error. Please try again later.");
+    }
+  };
 
   // === Mask email for privacy ===
   function maskEmail(email = "") {
@@ -503,63 +548,40 @@ export default function EventCard({
               onClick={async () => {
                 setMsg("");
 
-                // ✅ Check if user is logged in
+                // Check if user is logged in
                 const { data } = await supabase.auth.getUser();
                 const user = data?.user;
                 if (!user) {
                   alert("Please sign in to purchase tickets.");
-                  window.location.href = "/auth"; // adjust if your login route differs
+                  window.location.href = "/auth";
                   return;
                 }
 
-                // 💳 Paid event path
+                // Paid event path
+
                 if (is_paid && price > 0) {
-                  try {
-                    setMsg("💳 Redirecting to payment...");
+                  setMsg("💳 Redirecting to basket...");
 
-                    // 🧮 Ask for ticket quantity (simple prompt)
-                    const quantityStr = prompt(
-                      "How many tickets would you like to buy?",
-                      "1"
-                    );
-                    const quantity = Math.max(
-                      1,
-                      parseInt(quantityStr, 10) || 1
-                    );
+                  const quantityStr = prompt(
+                    "How many tickets would you like to buy?",
+                    "1"
+                  );
+                  const quantity = Math.max(1, parseInt(quantityStr, 10) || 1);
 
-                    const baseUrl =
-                      window.location.hostname === "localhost"
-                        ? "http://localhost:8888"
-                        : window.location.origin;
+                  // Add to basket context
+                  addToBasket({ id, title, price, date, is_paid }, quantity);
+                  setBasketOpen(true);
+                  // Option 1: open basket drawer (preferred UX)
+                  alert(
+                    `🎟️ Added ${quantity} ticket${
+                      quantity > 1 ? "s" : ""
+                    } to your basket!`
+                  );
 
-                    const response = await fetch(
-                      `${baseUrl}/.netlify/functions/create-checkout-session`,
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          eventId: id,
-                          title: title || "Untitled Event",
-                          price: Number(price) || 0,
-                          userEmail: user.email, // ✅ authenticated email only
-                          eventDate: date || new Date().toISOString(),
-                          quantity,
-                        }),
-                      }
-                    );
-
-                    const data = await response.json();
-                    if (data.url) {
-                      window.location.href = data.url;
-                    } else {
-                      setMsg("⚠️ Payment failed to initialize.");
-                    }
-                  } catch (err) {
-                    console.error("Payment error:", err);
-                    setMsg("⚠️ Payment error. Please try again later.");
-                  }
+                  // Option 2: or navigate directly to /basket
+                  // navigate("/basket");
                 } else {
-                  // 🆓 Free event path (still require login)
+                  // Free event path
                   await handleSignUp();
                 }
               }}

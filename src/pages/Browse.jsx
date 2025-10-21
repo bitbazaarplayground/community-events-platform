@@ -311,7 +311,7 @@ export default function Browse() {
               Find Your Next Experience
             </h2>
             <h1 className="text-4xl md:text-5xl font-extrabold mt-2">
-              Discover & Promote <br /> Upcoming Events
+              Your Gateway to <br /> Memorable Events
             </h1>
           </div>
 

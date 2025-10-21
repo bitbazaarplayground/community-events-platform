@@ -1,15 +1,19 @@
 // src/components/Navbar.jsx
+import { AnimatePresence } from "framer-motion"; // 👈 NEW
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { preloadRoute } from "../utils/preloadRoutes.js"; // 👈 NEW: preload helper
+import { useUI } from "../context/UIContext.jsx";
+import { preloadRoute } from "../utils/preloadRoutes.js";
+import BasketDrawer from "./BasketDrawer.jsx"; // 👈 NEW
 
 export default function Navbar({ user, role, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { basketOpen, setBasketOpen } = useUI();
   const menuRef = useRef(null);
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
-  // 🧩 Close menu when clicking outside
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -47,6 +51,14 @@ export default function Navbar({ user, role, onLogout }) {
         >
           Browse
         </Link>
+
+        {/* Basket Icon */}
+        <button
+          onClick={() => setBasketOpen(true)}
+          className="relative text-gray-700 hover:text-purple-600 transition text-xl"
+        >
+          🛒
+        </button>
 
         {user ? (
           <div className="relative" ref={menuRef}>
@@ -144,6 +156,17 @@ export default function Navbar({ user, role, onLogout }) {
             Browse
           </Link>
 
+          {/* Basket on Mobile */}
+          <button
+            onClick={() => {
+              setBasketOpen(true);
+              setMenuOpen(false);
+            }}
+            className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
+          >
+            🛒
+          </button>
+
           {user ? (
             <>
               <Link
@@ -198,6 +221,11 @@ export default function Navbar({ user, role, onLogout }) {
           )}
         </div>
       )}
+
+      {/* 🧺 Basket Drawer (Framer Motion) */}
+      <AnimatePresence>
+        {basketOpen && <BasketDrawer onClose={() => setBasketOpen(false)} />}
+      </AnimatePresence>
     </header>
   );
 }
