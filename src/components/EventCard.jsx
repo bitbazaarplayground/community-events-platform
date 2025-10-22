@@ -5,15 +5,14 @@ import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { FaCalendar } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useBasket } from "../context/BasketContext.jsx";
 import { useUI } from "../context/UIContext.jsx";
 import { buildGoogleCalendarUrl } from "../lib/calendar.js";
 import { signUpForEvent } from "../lib/signups.js";
 import "../styles/EventCard.css";
-import TicketModal from "./TicketModal.jsx";
-
 import { supabase } from "../supabaseClient.js";
+import TicketModal from "./TicketModal.jsx";
 
 const FALLBACK_IMAGE = "https://placehold.co/600x360?text=Event";
 
@@ -328,15 +327,17 @@ export default function EventCard({
     <div className="bg-white/80 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-purple-100 flex flex-col h-full justify-between">
       {/* Image */}
       <div className="relative">
-        <img
-          src={image_url || FALLBACK_IMAGE}
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = FALLBACK_IMAGE;
-          }}
-          alt={title || "Event image"}
-          className="h-48 w-full object-cover rounded-t-xl"
-        />
+        <Link to={`/event/${id}`} className="block hover:opacity-90 transition">
+          <img
+            src={image_url || FALLBACK_IMAGE}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = FALLBACK_IMAGE;
+            }}
+            alt={title || "Event image"}
+            className="h-48 w-full object-cover rounded-t-xl"
+          />
+        </Link>
 
         {/* Category */}
         {category && !external_source && (
@@ -362,8 +363,14 @@ export default function EventCard({
       {/* Body */}
       <div className="p-5 flex flex-col flex-1">
         <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1">
-          {title}
+          <Link
+            to={`/event/${id}`}
+            className="hover:text-purple-600 transition"
+          >
+            {title}
+          </Link>
         </h3>
+
         {date && (
           <p id={`date-${id}`} className="text-sm text-gray-600 mb-1">
             {new Date(date).toLocaleString()}

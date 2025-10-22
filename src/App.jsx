@@ -14,6 +14,7 @@ import Basket from "./pages/Basket.jsx";
 // Preload critical routes immediately
 import DiscountPopup from "./components/DiscountPopup.jsx";
 import Browse from "./pages/Browse.jsx";
+import EventDetails from "./pages/EventDetails.jsx";
 import Home from "./pages/Home.jsx";
 
 // 💤 Lazy-load less critical pages only
@@ -135,6 +136,9 @@ function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Events Details Page */}
+            <Route path="/event/:id" element={<EventDetails />} />
 
             {/* Basket & Other Pages */}
             <Route path="/basket" element={<Basket />} />
