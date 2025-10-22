@@ -52,7 +52,7 @@ export default function EventCard({
 
   const toggleDates = () => {
     setShowDates((prev) => !prev);
-    if (!hasInteracted) setHasInteracted(true); // permanently stop pulse after first click
+    if (!hasInteracted) setHasInteracted(true); // stop pulse after first click
   };
 
   // === Load if already saved ===
@@ -100,7 +100,6 @@ export default function EventCard({
       }
 
       if (active) {
-        // console.log("✅ Found creator:", data);
         setCreator(data);
       }
     };
@@ -134,7 +133,7 @@ export default function EventCard({
       window.removeEventListener("updateEventDate", handleDateUpdate);
   }, [id]);
 
-  //  Stripe checkout
+  //  Stripe checkout - disabled for now -> Export to own js file
 
   const handleCheckout = async ({ id, title, price, date, quantity, user }) => {
     const baseUrl =
@@ -569,7 +568,20 @@ export default function EventCard({
                   const quantity = Math.max(1, parseInt(quantityStr, 10) || 1);
 
                   // Add to basket context
-                  addToBasket({ id, title, price, date, is_paid }, quantity);
+
+                  addToBasket(
+                    {
+                      id,
+                      title,
+                      price,
+                      date,
+                      image_url: image_url || FALLBACK_IMAGE,
+                      location,
+                      is_paid,
+                    },
+                    quantity
+                  );
+
                   setBasketOpen(true);
                   // Option 1: open basket drawer (preferred UX)
                   alert(

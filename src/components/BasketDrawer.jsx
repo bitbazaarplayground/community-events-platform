@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useBasket } from "../context/BasketContext.jsx";
 
+const FALLBACK_IMAGE = "https://placehold.co/80x80?text=Event";
+
 export default function BasketDrawer({ onClose }) {
   const navigate = useNavigate();
   const { basketItems, removeFromBasket, clearBasket } = useBasket();
@@ -66,38 +68,51 @@ export default function BasketDrawer({ onClose }) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: -10 }}
                   transition={{ duration: 0.25 }}
-                  className="flex items-center gap-3 border-b pb-3 bg-white rounded-lg shadow-sm hover:shadow-md transition"
+                  className="flex items-start gap-3 border-b pb-3 bg-white rounded-lg shadow-sm hover:shadow-md transition"
                 >
+                  {/* ✅ Thumbnail */}
                   <img
-                    src={
-                      item.image_url || "https://placehold.co/60x60?text=Event"
-                    }
+                    src={item.image_url || FALLBACK_IMAGE}
                     alt={item.title}
-                    className="w-14 h-14 rounded-lg object-cover"
+                    className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
                   />
 
+                  {/* ✅ Details */}
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-800">
+                    <h3 className="font-semibold text-gray-800 line-clamp-1">
                       {item.title}
                     </h3>
+
                     {item.date && (
-                      <p className="text-sm text-gray-600">
-                        {new Date(item.date).toLocaleDateString()}
+                      <p className="text-xs text-gray-500">
+                        {new Date(item.date).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })}
                       </p>
                     )}
-                    <p className="text-xs text-gray-500">
-                      {item.quantity} × £{item.price}
+
+                    {item.location && (
+                      <p className="text-xs text-gray-500 line-clamp-1">
+                        📍 {item.location}
+                      </p>
+                    )}
+
+                    <p className="text-xs text-gray-600 mt-1">
+                      {item.quantity} × £{item.price.toFixed(2)}
                     </p>
                   </div>
 
-                  <div className="flex flex-col items-end">
-                    <p className="font-semibold">
+                  {/* ✅ Price & Remove */}
+                  <div className="flex flex-col items-end justify-between">
+                    <p className="font-semibold text-gray-800">
                       £{(item.price * item.quantity).toFixed(2)}
                     </p>
-                    {/* ❌ Inline remove button */}
+
                     <button
                       onClick={() => removeFromBasket(item.id)}
-                      className="text-gray-400 hover:text-red-500 mt-1"
+                      className="text-gray-400 hover:text-red-500 mt-2"
                       title="Remove this event"
                     >
                       <XMarkIcon className="w-4 h-4" />
