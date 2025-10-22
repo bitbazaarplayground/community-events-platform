@@ -7,11 +7,10 @@ import { supabase } from "../supabaseClient.js";
 
 export default function Basket() {
   const { basketItems, removeFromBasket, clearBasket } = useBasket();
-  console.log("Basket page sees items:", basketItems);
-
   const [promoCode, setPromoCode] = useState("");
   const [discountMsg, setDiscountMsg] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [showDiscountPopup, setShowDiscountPopup] = useState(false);
 
   const subtotal = basketItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -19,20 +18,24 @@ export default function Basket() {
   );
   const total = subtotal * (1 - discountPercent / 100);
 
-  const handleApplyDiscount = async () => {
-    const { data, error } = await supabase
-      .from("discounts")
-      .select("*")
-      .eq("code", promoCode.trim().toUpperCase())
-      .single();
+  // Apply discount
+  const handleApplyDiscount = () => {
+    const code = promoCode.trim().toUpperCase();
 
-    if (error || !data || !data.is_active) {
-      setDiscountMsg("❌ Invalid or expired promo code.");
+    if (code === "WELCOME10") {
+      setDiscountPercent(10);
+      setDiscountMsg("Promo code applied! You got 10% off.");
+      setShowDiscountPopup(true);
+
+      // Hide popup automatically
+      setTimeout(() => setShowDiscountPopup(false), 3000);
     } else {
-      setDiscountPercent(data.discount_percent);
-      setDiscountMsg(`✅ ${data.discount_percent}% off applied!`);
+      setDiscountMsg("❌ Invalid promo code.");
+      setDiscountPercent(0);
     }
   };
+
+  // Handle checkout
   const handleCheckout = async () => {
     if (basketItems.length === 0) {
       alert("Your basket is empty!");
@@ -45,6 +48,8 @@ export default function Basket() {
         : window.location.origin;
 
     try {
+      const userEmail = (await supabase.auth.getUser()).data?.user?.email;
+
       const response = await fetch(
         `${baseUrl}/.netlify/functions/create-checkout-session`,
         {
@@ -57,7 +62,9 @@ export default function Basket() {
               price: item.price,
               quantity: item.quantity,
             })),
-            userEmail: (await supabase.auth.getUser()).data?.user?.email,
+            userEmail,
+            // 👇 Pass discount info to Stripe
+            metadata: { discount_percent: discountPercent },
           }),
         }
       );
@@ -65,7 +72,6 @@ export default function Basket() {
       const data = await response.json();
 
       if (data.url) {
-        // ✅ Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
         alert("⚠️ Payment failed to initialize.");
@@ -91,7 +97,7 @@ export default function Basket() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto p-8 bg-white shadow-lg rounded-2xl mt-10"
+      className="max-w-2xl mx-auto p-8 bg-white shadow-lg rounded-2xl mt-10 relative"
     >
       <h2 className="text-2xl font-bold mb-4 text-gray-800">Your Basket</h2>
 
@@ -120,7 +126,7 @@ export default function Basket() {
                   £{(item.price * item.quantity).toFixed(2)}
                 </p>
 
-                {/* ❌ Remove button */}
+                {/* Remove button */}
                 <button
                   onClick={() => removeFromBasket(item.id)}
                   className="text-gray-400 hover:text-red-500 transition"
@@ -178,6 +184,32 @@ export default function Basket() {
           Clear All
         </button>
       </div>
+
+      {/*  Discount popup */}
+      <AnimatePresence>
+        {showDiscountPopup && (
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 1, type: "spring" }}
+            className="fixed bottom-6 right-6 bg-purple-600 text-white px-6 py-3 rounded-lg shadow-lg text-sm font-semibold flex items-center justify-between gap-3 z-50"
+          >
+            <div className="flex items-center gap-2">
+              🎁 Promo code applied! Enjoy 10% off
+            </div>
+
+            {/*  Close button */}
+            <button
+              onClick={() => setShowDiscountPopup(false)}
+              className="ml-3 text-white/80 hover:text-white transition"
+              title="Close"
+            >
+              ✖
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

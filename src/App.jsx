@@ -12,6 +12,7 @@ import AuthCallback from "./pages/AuthCallback.jsx";
 import Basket from "./pages/Basket.jsx";
 
 // Preload critical routes immediately
+import DiscountPopup from "./components/DiscountPopup.jsx";
 import Browse from "./pages/Browse.jsx";
 import Home from "./pages/Home.jsx";
 
@@ -135,7 +136,7 @@ function AppRoutes() {
               }
             />
 
-            {/* 🧺 Basket & Other Pages */}
+            {/* Basket & Other Pages */}
             <Route path="/basket" element={<Basket />} />
             <Route path="/verify/:ticketId" element={<VerifyTicket />} />
             <Route path="/success" element={<Success />} />
@@ -161,6 +162,7 @@ export default function App() {
       <BasketProvider>
         <ToastMessage />
         <AppRoutes />
+        <DiscountPopup />
       </BasketProvider>
     </UIProvider>
   );
