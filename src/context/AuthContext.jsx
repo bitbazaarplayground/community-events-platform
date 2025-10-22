@@ -61,7 +61,6 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error("AuthContext init error:", err.message);
       } finally {
-        // ✅ Always mark session checked after max 1.2s
         setTimeout(() => {
           if (active) setSessionChecked(true);
         }, 1200);
@@ -105,7 +104,7 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ✅ Logout function with redirect
+  // Logout function and redirect
   const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -116,7 +115,7 @@ export function AuthProvider({ children }) {
       setProfile(null);
       setUserRole(null);
       setSavedEvents([]);
-      console.log("✅ Logged out successfully");
+      console.log("Logged out successfully");
 
       // Redirect to homepage
       window.location.href = "/";

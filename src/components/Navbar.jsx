@@ -1,10 +1,11 @@
 // src/components/Navbar.jsx
-import { AnimatePresence } from "framer-motion"; // 👈 NEW
+import { AnimatePresence } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useBasket } from "../context/BasketContext.jsx";
 import { useUI } from "../context/UIContext.jsx";
 import { preloadRoute } from "../utils/preloadRoutes.js";
-import BasketDrawer from "./BasketDrawer.jsx"; // 👈 NEW
+import BasketDrawer from "./BasketDrawer.jsx";
 
 export default function Navbar({ user, role, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -12,6 +13,7 @@ export default function Navbar({ user, role, onLogout }) {
   const menuRef = useRef(null);
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
+  const { basketItems } = useBasket();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -53,12 +55,17 @@ export default function Navbar({ user, role, onLogout }) {
         </Link>
 
         {/* Basket Icon */}
-        <button
-          onClick={() => setBasketOpen(true)}
-          className="relative text-gray-700 hover:text-purple-600 transition text-xl"
-        >
-          🛒
-        </button>
+        {basketItems.length > 0 && (
+          <button
+            onClick={() => setBasketOpen(true)}
+            className="relative text-gray-700 hover:text-purple-600 transition text-xl"
+          >
+            🛒
+            <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs rounded-full px-1.5">
+              {basketItems.length}
+            </span>
+          </button>
+        )}
 
         {user ? (
           <div className="relative" ref={menuRef}>
@@ -157,15 +164,17 @@ export default function Navbar({ user, role, onLogout }) {
           </Link>
 
           {/* Basket on Mobile */}
-          <button
-            onClick={() => {
-              setBasketOpen(true);
-              setMenuOpen(false);
-            }}
-            className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
-          >
-            🛒
-          </button>
+          {basketItems.length > 0 && (
+            <button
+              onClick={() => {
+                setBasketOpen(true);
+                setMenuOpen(false);
+              }}
+              className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
+            >
+              🛒 Basket ({basketItems.length})
+            </button>
+          )}
 
           {user ? (
             <>
@@ -222,7 +231,7 @@ export default function Navbar({ user, role, onLogout }) {
         </div>
       )}
 
-      {/* 🧺 Basket Drawer (Framer Motion) */}
+      {/* Basket Drawer (Framer Motion) */}
       <AnimatePresence>
         {basketOpen && <BasketDrawer onClose={() => setBasketOpen(false)} />}
       </AnimatePresence>
