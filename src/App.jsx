@@ -1,6 +1,7 @@
 // src/App.jsx
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import ChatHelper from "./components/ChatHelper.jsx";
 import Navbar from "./components/Navbar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ToastMessage from "./components/ToastMessage.jsx";
@@ -155,6 +156,7 @@ function AppRoutes() {
           </Routes>
         </Suspense>
       </main>
+      <ChatHelper />
       <Footer />
     </>
   );

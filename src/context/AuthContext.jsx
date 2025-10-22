@@ -83,6 +83,16 @@ export function AuthProvider({ children }) {
       setUser(currentUser);
 
       if (currentUser) {
+        // Track login count for friendly greetings
+        const loginCount =
+          parseInt(localStorage.getItem("userLoginCount") || "0", 10) + 1;
+        localStorage.setItem("userLoginCount", loginCount);
+
+        // Fire Mario's greeting logic
+        if (loginCount === 1 || loginCount % 5 === 0) {
+          window.dispatchEvent(new Event("userFirstLogin"));
+        }
+
         const { data: profileData } = await supabase
           .from("user_profiles")
           .select("*")
