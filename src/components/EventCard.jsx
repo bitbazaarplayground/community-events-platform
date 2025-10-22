@@ -2,6 +2,7 @@
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { FaCalendar } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +11,7 @@ import { useUI } from "../context/UIContext.jsx";
 import { buildGoogleCalendarUrl } from "../lib/calendar.js";
 import { signUpForEvent } from "../lib/signups.js";
 import "../styles/EventCard.css";
+import TicketModal from "./TicketModal.jsx";
 
 import { supabase } from "../supabaseClient.js";
 
@@ -49,6 +51,7 @@ export default function EventCard({
   // Basket
   const { addToBasket } = useBasket();
   const { setBasketOpen } = useUI();
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   const toggleDates = () => {
     setShowDates((prev) => !prev);
@@ -542,33 +545,43 @@ export default function EventCard({
               </span>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={async () => {
-                setMsg("");
+            <>
+              <button
+                type="button"
+                onClick={async () => {
+                  setMsg("");
+                  const { data } = await supabase.auth.getUser();
+                  const user = data?.user;
 
-                // Check if user is logged in
-                const { data } = await supabase.auth.getUser();
-                const user = data?.user;
-                if (!user) {
-                  alert("Please sign in to purchase tickets.");
-                  window.location.href = "/auth";
-                  return;
-                }
+                  if (!user) {
+                    alert("Please sign in to purchase tickets.");
+                    window.location.href = "/auth";
+                    return;
+                  }
 
-                // Paid event path
+                  if (is_paid && price > 0) {
+                    setShowTicketModal(true);
+                  } else {
+                    await handleSignUp();
+                  }
+                }}
+                disabled={signing || seats_left === 0}
+                className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {seats_left === 0
+                  ? "Sold out"
+                  : signing
+                  ? "Signing you up…"
+                  : is_paid && price > 0
+                  ? `Add To Basket £${price}`
+                  : "Join Free"}
+              </button>
 
-                if (is_paid && price > 0) {
-                  setMsg("💳 Redirecting to basket...");
-
-                  const quantityStr = prompt(
-                    "How many tickets would you like to buy?",
-                    "1"
-                  );
-                  const quantity = Math.max(1, parseInt(quantityStr, 10) || 1);
-
-                  // Add to basket context
-
+              {/* 🎟 Ticket Quantity Modal */}
+              <TicketModal
+                isOpen={showTicketModal}
+                onClose={() => setShowTicketModal(false)}
+                onConfirm={(quantity) => {
                   addToBasket(
                     {
                       id,
@@ -581,39 +594,32 @@ export default function EventCard({
                     },
                     quantity
                   );
-
-                  setBasketOpen(true);
-                  // Option 1: open basket drawer (preferred UX)
-                  alert(
-                    `🎟️ Added ${quantity} ticket${
+                  setShowTicketModal(false);
+                  setMsg(
+                    `Added ${quantity} ticket${
                       quantity > 1 ? "s" : ""
                     } to your basket!`
                   );
+                }}
+              />
 
-                  // Option 2: or navigate directly to /basket
-                  // navigate("/basket");
-                } else {
-                  // Free event path
-                  await handleSignUp();
-                }
-              }}
-              disabled={signing || seats_left === 0}
-              className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {seats_left === 0
-                ? "Sold out"
-                : signing
-                ? "Signing you up…"
-                : is_paid && price > 0
-                ? `Buy Ticket (£${price})`
-                : "Join Free"}
-            </button>
-          )}
-
-          {msg && (
-            <p className="text-xs mt-2 text-gray-600" aria-live="polite">
-              {msg}
-            </p>
+              {/* Animated success message */}
+              <AnimatePresence mode="wait">
+                {msg && (
+                  <motion.p
+                    key={msg}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-xs mt-2 text-gray-600 text-center"
+                    aria-live="polite"
+                  >
+                    {msg}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </>
           )}
         </div>
       </div>
