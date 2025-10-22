@@ -34,15 +34,13 @@ export function AuthProvider({ children }) {
   // Fetch user and profile on load
   useEffect(() => {
     let active = true;
-    (async () => {
+
+    const fetchSession = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
 
-        const currentUser = session?.user || null;
+        const currentUser = data?.session?.user || null;
         if (!active) return;
 
         setUser(currentUser);
@@ -63,9 +61,14 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error("AuthContext init error:", err.message);
       } finally {
-        if (active) setSessionChecked(true);
+        // ✅ Always mark session checked after max 1.2s
+        setTimeout(() => {
+          if (active) setSessionChecked(true);
+        }, 1200);
       }
-    })();
+    };
+
+    fetchSession();
 
     return () => {
       active = false;
