@@ -31,28 +31,24 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Fetch user and profile on load
   useEffect(() => {
     let active = true;
 
-    const fetchSession = async () => {
+    const initAuth = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
+        // Get current session immediately
+        const { data } = await supabase.auth.getSession();
         const currentUser = data?.session?.user || null;
         if (!active) return;
 
         setUser(currentUser);
 
         if (currentUser) {
-          const { data: profileData, error: profErr } = await supabase
+          const { data: profileData } = await supabase
             .from("user_profiles")
             .select("*")
             .eq("id", currentUser.id)
             .maybeSingle();
-
-          if (profErr) throw profErr;
 
           setProfile(profileData);
           setUserRole(profileData?.role || "user");
@@ -61,21 +57,14 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error("AuthContext init error:", err.message);
       } finally {
-        setTimeout(() => {
-          if (active) setSessionChecked(true);
-        }, 1200);
+        // ✅ Don’t delay setting sessionChecked
+        if (active) setSessionChecked(true);
       }
     };
 
-    fetchSession();
+    initAuth();
 
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Handle auth state changes
-  useEffect(() => {
+    // ✅ Keep listening for future changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -83,16 +72,6 @@ export function AuthProvider({ children }) {
       setUser(currentUser);
 
       if (currentUser) {
-        // Track login count for friendly greetings
-        const loginCount =
-          parseInt(localStorage.getItem("userLoginCount") || "0", 10) + 1;
-        localStorage.setItem("userLoginCount", loginCount);
-
-        // Fire Mario's greeting logic
-        if (loginCount === 1 || loginCount % 5 === 0) {
-          window.dispatchEvent(new Event("userFirstLogin"));
-        }
-
         const { data: profileData } = await supabase
           .from("user_profiles")
           .select("*")
@@ -108,10 +87,14 @@ export function AuthProvider({ children }) {
         setSavedEvents([]);
       }
 
+      // ✅ Always mark session as checked
       setSessionChecked(true);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Logout function and redirect
