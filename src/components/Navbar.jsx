@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useBasket } from "../context/BasketContext.jsx";
 import { useUI } from "../context/UIContext.jsx";
+import "../styles/NavbarLogo.css";
 import { preloadRoute } from "../utils/preloadRoutes.js";
 import BasketDrawer from "./BasketDrawer.jsx";
 
@@ -32,8 +33,11 @@ export default function Navbar({ user, role, onLogout }) {
       <Link
         to="/"
         onMouseEnter={() => preloadRoute("Home")}
-        className="text-2xl font-extrabold tracking-tight text-gray-900"
+        className="text-2xl font-extrabold tracking-tight text-gray-900 flex items-center space-x-1"
       >
+        <span className="y-wrapper mr-1">
+          <span className="fancy-y">Y</span>
+        </span>
         EVENTS
       </Link>
 
