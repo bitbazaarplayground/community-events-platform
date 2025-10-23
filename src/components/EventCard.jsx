@@ -592,15 +592,26 @@ export default function EventCard({
                   addToBasket(
                     {
                       id,
-                      title,
-                      price,
-                      date,
-                      image_url: image_url || FALLBACK_IMAGE,
-                      location,
+                      title: title || "Untitled Event",
+                      price: Number(price) || 0,
+                      date:
+                        date ||
+                        (Array.isArray(extraDates) && extraDates.length > 0
+                          ? extraDates[0]
+                          : Array.isArray(extra_dates) && extra_dates.length > 0
+                          ? extra_dates[0]
+                          : null),
+                      image_url:
+                        image_url ||
+                        (Array.isArray(extraDates) && extraDates[0]?.image) ||
+                        FALLBACK_IMAGE,
+                      location: location || "Location to be announced",
                       is_paid,
+                      extraDates: extraDates || extra_dates || [],
                     },
                     quantity
                   );
+
                   setShowTicketModal(false);
                   setMsg(
                     `Added ${quantity} ticket${

@@ -43,7 +43,7 @@ const TermsOfService = lazy(() =>
 function AppRoutes() {
   const { user, userRole, logout, sessionChecked } = useAuth();
 
-  // 🟣 Prevent flicker — display fast minimal loader
+  // display fast minimal loader
   if (!sessionChecked) {
     return (
       <div className="flex items-center justify-center min-h-screen text-purple-700 font-semibold text-lg">
@@ -68,7 +68,7 @@ function AppRoutes() {
             <Route path="/" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
 
-            {/* 🧭 Auth & Protected Routes */}
+            {/* Auth & Protected Routes */}
             <Route
               path="/auth"
               element={user ? <Navigate to="/" /> : <Auth />}

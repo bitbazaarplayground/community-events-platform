@@ -1,3 +1,4 @@
+// src/components/BasketDrawer.jsx
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef } from "react";
@@ -16,7 +17,7 @@ export default function BasketDrawer({ onClose }) {
     0
   );
 
-  // 🧠 Detect clicks outside the drawer
+  // Detect clicks outside the drawer
   useEffect(() => {
     function handleClickOutside(event) {
       if (drawerRef.current && !drawerRef.current.contains(event.target)) {
@@ -27,6 +28,12 @@ export default function BasketDrawer({ onClose }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
+
+  // Navigate to event details and close drawer
+  const handleNavigateToEvent = (id) => {
+    onClose();
+    navigate(`/event/${id}`);
+  };
 
   return (
     <motion.div
@@ -70,16 +77,19 @@ export default function BasketDrawer({ onClose }) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: -10 }}
                 transition={{ duration: 0.25 }}
-                className="flex items-start gap-3 border-b pb-3 bg-white rounded-lg shadow-sm hover:shadow-md transition"
+                className="flex items-start gap-3 border-b pb-3 bg-white rounded-lg shadow-sm hover:shadow-md transition cursor-pointer"
+                onClick={() => handleNavigateToEvent(item.id)}
               >
+                {/* 🎟 Clickable image */}
                 <img
                   src={item.image_url || FALLBACK_IMAGE}
                   alt={item.title}
                   className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
                 />
 
+                {/* 📝 Event Info */}
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-800 line-clamp-1">
+                  <h3 className="font-semibold text-gray-800 line-clamp-1 hover:text-purple-700 transition">
                     {item.title}
                   </h3>
 
@@ -95,7 +105,7 @@ export default function BasketDrawer({ onClose }) {
 
                   {item.location && (
                     <p className="text-xs text-gray-500 line-clamp-1">
-                      📍 {item.location}
+                      {item.location}
                     </p>
                   )}
 
@@ -104,7 +114,10 @@ export default function BasketDrawer({ onClose }) {
                   </p>
                 </div>
 
-                <div className="flex flex-col items-end justify-between">
+                <div
+                  className="flex flex-col items-end justify-between"
+                  onClick={(e) => e.stopPropagation()} // prevent navigation when removing
+                >
                   <p className="font-semibold text-gray-800">
                     £{(item.price * item.quantity).toFixed(2)}
                   </p>
@@ -141,7 +154,7 @@ export default function BasketDrawer({ onClose }) {
             }}
             className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition"
           >
-            View Full Basket
+            Proceed to Checkout
           </button>
           <button
             onClick={clearBasket}

@@ -57,14 +57,14 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error("AuthContext init error:", err.message);
       } finally {
-        // ✅ Don’t delay setting sessionChecked
+        // Don’t delay setting sessionChecked
         if (active) setSessionChecked(true);
       }
     };
 
     initAuth();
 
-    // ✅ Keep listening for future changes
+    // listening for future changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -87,7 +87,7 @@ export function AuthProvider({ children }) {
         setSavedEvents([]);
       }
 
-      // ✅ Always mark session as checked
+      //  mark session as checked
       setSessionChecked(true);
     });
 
