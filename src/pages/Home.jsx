@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EventCard from "../components/EventCard.jsx";
 import Hero from "../components/Hero.jsx";
+import TopCities from "../components/TopCities.jsx";
 import { searchTicketmaster } from "../lib/ticketmaster.js";
 import { supabase } from "../supabaseClient.js";
 
@@ -203,6 +204,8 @@ export default function Home() {
           </>
         )}
       </main>
+      {/* --- Top UK Cities Section --- */}
+      <TopCities />
     </div>
   );
 }

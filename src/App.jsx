@@ -15,6 +15,7 @@ import Basket from "./pages/Basket.jsx";
 // Preload critical routes immediately
 import DiscountPopup from "./components/DiscountPopup.jsx";
 import Browse from "./pages/Browse.jsx";
+import CityEvents from "./pages/CityEvents.jsx";
 import EventDetails from "./pages/EventDetails.jsx";
 import Home from "./pages/Home.jsx";
 
@@ -140,7 +141,8 @@ function AppRoutes() {
 
             {/* Events Details Page */}
             <Route path="/event/:id" element={<EventDetails />} />
-
+            {/* Redirect to City page */}
+            <Route path="/city/:cityName" element={<CityEvents />} />
             {/* Basket & Other Pages */}
             <Route path="/basket" element={<Basket />} />
             <Route path="/verify/:ticketId" element={<VerifyTicket />} />
