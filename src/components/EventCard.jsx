@@ -501,7 +501,7 @@ export default function EventCard({
             )}
 
             <span className="flex items-center gap-1">
-              Organized by{" "}
+              Organised by{" "}
               {external_source === "ticketmaster" ? (
                 <span className="font-semibold text-purple-600 flex items-center gap-1">
                   {external_organizer?.trim()
