@@ -14,38 +14,31 @@ export default function Recovery() {
 
   // ✅ STEP 1: Exchange the URL hash for a valid session
   useEffect(() => {
-    const verifyAndSetSession = async () => {
-      const hash = window.location.hash;
-      if (!hash) {
-        setMsg("⚠️ Invalid or missing token.");
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getUser();
+
+      if (data?.user) {
+        setSessionRestored(true);
+        setMsg("");
         return;
       }
 
-      try {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(
-          hash
-        );
-        if (error) throw error;
-
-        const type = new URLSearchParams(hash.replace("#", "")).get("type");
-
-        // 🟢 Handle signup verification redirect
-        if (type === "signup" || type === "magiclink") {
-          setMsg("Email verified successfully! Redirecting...");
-          setTimeout(() => navigate("/"), 1500);
-          return;
+      // ⏳ Wait for Supabase to finish restoring session from recovery link
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "PASSWORD_RECOVERY" || session) {
+          setSessionRestored(true);
+          setMsg("");
         }
+      });
 
-        // 🟢 Handle password reset
-        setSessionRestored(true);
-      } catch (err) {
-        console.error("❌ Session exchange error:", err.message);
-        setMsg("⚠️ Link invalid or expired. Please request a new one.");
-      }
+      // Cleanup on unmount
+      return () => subscription.unsubscribe();
     };
 
-    verifyAndSetSession();
-  }, [navigate]);
+    checkSession();
+  }, []);
 
   // ✅ Password validation
   const validatePassword = (pwd) => {
