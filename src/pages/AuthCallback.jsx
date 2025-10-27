@@ -8,46 +8,40 @@ export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // ✅ Step 1: If user is already logged in, skip verification
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session?.user) {
-        navigate("/", { replace: true });
-        return;
-      }
-
-      // ✅ Step 2: Check URL for tokens
-      const hash = window.location.hash;
-      if (!hash) {
-        setMsg("⚠️ No verification token found.");
-        return;
-      }
-
-      const params = new URLSearchParams(hash.replace("#", ""));
-      const access_token = params.get("access_token");
-      const refresh_token = params.get("refresh_token");
-
-      if (!access_token || !refresh_token) {
-        setMsg("⚠️ Invalid or missing token.");
-        return;
-      }
-
-      // ✅ Step 3: Exchange tokens and verify session
       try {
+        // ✅ Parse tokens from URL
+        const hash = window.location.hash;
+        const params = new URLSearchParams(hash.replace("#", ""));
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+        const type = params.get("type");
+
+        if (!access_token || !refresh_token) {
+          setMsg("⚠️ Invalid or missing token.");
+          return;
+        }
+
+        // ✅ Set Supabase session
         const { error } = await supabase.auth.setSession({
           access_token,
           refresh_token,
         });
         if (error) throw error;
 
+        // ✅ If it's a password recovery link, go to /recovery
+        if (type === "recovery") {
+          setMsg("✅ Recovery link verified! Redirecting...");
+          setTimeout(() => navigate("/recovery", { replace: true }), 1000);
+          return;
+        }
+
+        // ✅ Otherwise handle login/verification
         setMsg("✅ Verified! Redirecting...");
-        setTimeout(() => {
-          // ✅ Redirect to home (BrowserRouter-safe)
-          navigate("/", { replace: true });
-        }, 1500);
+        setTimeout(() => navigate("/", { replace: true }), 1000);
       } catch (err) {
         console.error("Verification error:", err.message);
-        setMsg("❌ Invalid or expired link. Please try logging in again.");
+        setMsg("❌ Invalid or expired link. Please request a new one.");
       }
     })();
   }, [navigate]);
@@ -57,7 +51,7 @@ export default function AuthCallback() {
       <div className="bg-white p-8 rounded shadow-md w-full max-w-md text-center">
         <h2 className="text-xl font-semibold mb-2">{msg}</h2>
         <p className="text-gray-600 text-sm">
-          Please wait a moment while we verify your email or recovery link.
+          Please wait while we verify your email or recovery link.
         </p>
       </div>
     </div>
