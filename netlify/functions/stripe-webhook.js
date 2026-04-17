@@ -171,30 +171,6 @@ export const handler = async (event) => {
           console.error("❌ Error calling send-ticket-email:", err);
         }
       }
-
-      // ✅ 5. Send email with PDF ticket(s)
-      try {
-        const resp = await fetch(
-          "https://mxmilyyybwckvtkxhnym.functions.supabase.co/send-ticket-email",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              event: {
-                id: event_id,
-                title: event_title,
-                date_time: event_date,
-              },
-              user: { email: user_email },
-            }),
-          }
-        );
-
-        if (resp.ok) console.log("📧 Ticket email sent successfully!");
-        else console.error("⚠️ Ticket email failed:", await resp.text());
-      } catch (err) {
-        console.error("❌ Error calling send-ticket-email:", err);
-      }
     }
 
     return { statusCode: 200, body: "Webhook received successfully" };

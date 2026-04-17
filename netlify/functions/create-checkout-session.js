@@ -1,5 +1,5 @@
 // netlify/functions/create-checkout-session.js
-// netlify/functions/create-checkout-session.js
+
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 
