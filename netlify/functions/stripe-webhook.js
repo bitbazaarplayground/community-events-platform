@@ -43,100 +43,139 @@ export const handler = async (event) => {
         session.metadata?.user_email ||
         "guest@example.com";
 
-      const event_id = session.metadata?.event_id;
-      const event_title = session.metadata?.event_title || "Untitled Event";
-      const event_date = session.metadata?.event_date || null;
-      const amount = (session.amount_total || 0) / 100;
-      const quantity = Number(session.metadata?.quantity) || 1;
+      const basket = JSON.parse(session.metadata?.basket_json || "[]");
 
       console.log("💰 Payment success:", {
         user_email,
-        event_title,
-        amount,
-        quantity,
+        basket,
+        amount_total: session.amount_total,
       });
 
-      // ✅ 1. Record payment
-      const { data: paymentRow, error: payError } = await supabase
-        .from("payments")
-        .insert({
-          user_email,
+      for (const item of basket) {
+        const event_id = item.event_id;
+        const event_title = item.event_title || "Untitled Event";
+        const event_date = item.event_date || null;
+        const quantity = Number(item.quantity) || 1;
+        const amount = Number(item.price || 0) * quantity;
+
+        // ✅ 1. Record payment
+        const { data: paymentRow, error: payError } = await supabase
+          .from("payments")
+          .insert({
+            user_email,
+            event_id,
+            event_title,
+            amount,
+            quantity,
+            status: "succeeded",
+          })
+          .select("id")
+          .single();
+
+        if (payError) {
+          console.error("❌ Error saving payment:", payError.message);
+          continue;
+        }
+
+        const payment_id = paymentRow.id;
+        console.log("✅ Payment record inserted:", payment_id);
+
+        // ✅ 2. Record attendee
+        const { error: attError } = await supabase.from("attendees").insert({
           event_id,
-          event_title,
-          amount,
-          quantity,
-          status: "succeeded",
-        })
-        .select("id")
-        .single();
-
-      if (payError) {
-        console.error("❌ Error saving payment:", payError.message);
-        return { statusCode: 500, body: "Payment insert failed" };
-      }
-      const payment_id = paymentRow.id;
-      console.log("✅ Payment record inserted:", payment_id);
-
-      // ✅ 2. Record attendee
-      const { error: attError } = await supabase.from("attendees").insert({
-        event_id,
-        user_email,
-        user_name: user_email.split("@")[0],
-        paid_amount: amount,
-        tickets: quantity,
-      });
-
-      if (attError)
-        console.error("❌ Error saving attendee:", attError.message);
-      else console.log("✅ Attendee record inserted");
-
-      // ✅ 3. Deduct seats
-      const { data: eventData, error: fetchError } = await supabase
-        .from("events")
-        .select("seats_left")
-        .eq("id", event_id)
-        .single();
-
-      if (fetchError) {
-        console.error("⚠️ Failed to fetch seats_left:", fetchError.message);
-      } else if (eventData) {
-        const newSeatsLeft = Math.max(eventData.seats_left - quantity, 0);
-        const { error: updateError } = await supabase
-          .from("events")
-          .update({ seats_left: newSeatsLeft })
-          .eq("id", event_id);
-        if (updateError)
-          console.error("⚠️ Failed to update seats_left:", updateError.message);
-        else
-          console.log(
-            `✅ Seats updated for ${event_title}: ${newSeatsLeft} remaining`
-          );
-      }
-
-      // ✅ 4. Generate one ticket per quantity
-      for (let i = 0; i < quantity; i++) {
-        const ticketId = crypto.randomUUID();
-        const verifyUrl = `${SITE_URL}/#/verify/${ticketId}`;
-        const qrPayload = `ticket:${ticketId}|event:${event_id}|user:${user_email}`;
-        const qrImage = await QRCode.toDataURL(qrPayload);
-
-        const { error: ticketError } = await supabase.from("tickets").insert({
-          id: ticketId,
-          event_id,
-          payment_id,
           user_email,
-          qr_data: verifyUrl, // we’ll open this on scan
+          user_name: user_email.split("@")[0],
+          paid_amount: amount,
+          tickets: quantity,
         });
 
-        if (ticketError)
-          console.error("❌ Error inserting ticket:", ticketError.message);
-        else console.log(`🎟️ Ticket created for ${user_email}: ${ticketId}`);
+        if (attError) {
+          console.error("❌ Error saving attendee:", attError.message);
+        } else {
+          console.log("✅ Attendee record inserted");
+        }
+
+        // ✅ 3. Deduct seats
+        const { data: eventData, error: fetchError } = await supabase
+          .from("events")
+          .select("seats_left")
+          .eq("id", event_id)
+          .single();
+
+        if (fetchError) {
+          console.error("⚠️ Failed to fetch seats_left:", fetchError.message);
+        } else if (eventData) {
+          const newSeatsLeft = Math.max(eventData.seats_left - quantity, 0);
+
+          const { error: updateError } = await supabase
+            .from("events")
+            .update({ seats_left: newSeatsLeft })
+            .eq("id", event_id);
+
+          if (updateError) {
+            console.error(
+              "⚠️ Failed to update seats_left:",
+              updateError.message
+            );
+          } else {
+            console.log(
+              `✅ Seats updated for ${event_title}: ${newSeatsLeft} remaining`
+            );
+          }
+        }
+
+        // ✅ 4. Generate one ticket per quantity
+        for (let i = 0; i < quantity; i++) {
+          const ticketId = crypto.randomUUID();
+          const verifyUrl = `${SITE_URL}/verify/${ticketId}`;
+          const qrPayload = `ticket:${ticketId}|event:${event_id}|user:${user_email}`;
+
+          await QRCode.toDataURL(qrPayload);
+
+          const { error: ticketError } = await supabase.from("tickets").insert({
+            id: ticketId,
+            event_id,
+            payment_id,
+            user_email,
+            qr_data: verifyUrl,
+          });
+
+          if (ticketError) {
+            console.error("❌ Error inserting ticket:", ticketError.message);
+          } else {
+            console.log(`🎟️ Ticket created for ${user_email}: ${ticketId}`);
+          }
+        }
+
+        // ✅ 5. Send email with PDF ticket(s)
+        try {
+          const resp = await fetch(
+            "https://mxmilyyybwckvtkxhnym.functions.supabase.co/send-ticket-email",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                event: {
+                  id: event_id,
+                  title: event_title,
+                  date_time: event_date,
+                },
+                user: { email: user_email },
+              }),
+            }
+          );
+
+          if (resp.ok) console.log("📧 Ticket email sent successfully!");
+          else console.error("⚠️ Ticket email failed:", await resp.text());
+        } catch (err) {
+          console.error("❌ Error calling send-ticket-email:", err);
+        }
       }
 
       // ✅ 5. Send email with PDF ticket(s)
       try {
         const resp = await fetch(
-          "https://actnlispzkojepsmdsss.functions.supabase.co/send-ticket-email",
+          "https://mxmilyyybwckvtkxhnym.functions.supabase.co/send-ticket-email",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

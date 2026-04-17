@@ -113,11 +113,19 @@ export async function handler(event) {
       mode: "payment",
       customer_email: userEmail,
       line_items,
-      success_url: `${SITE_URL}/success`,
+      success_url: `${SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/cancel`,
       metadata: {
-        event_ids: basketItems.map((i) => i.eventId).join(", "),
-        event_titles: basketItems.map((i) => i.title).join(", "),
+        user_email: userEmail || "",
+        basket_json: JSON.stringify(
+          basketItems.map((item) => ({
+            event_id: item.eventId,
+            event_title: item.title,
+            event_date: item.eventDate || "",
+            quantity: item.quantity || 1,
+            price: item.price || 0,
+          }))
+        ),
       },
     });
 
