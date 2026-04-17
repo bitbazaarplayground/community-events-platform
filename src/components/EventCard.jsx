@@ -34,6 +34,7 @@ export default function EventCard({
   extraCount,
   extraDates, //TM
   extra_dates, //db
+  hideJoinButton,
 }) {
   const navigate = useNavigate();
   const [creator, setCreator] = useState(null);
@@ -553,37 +554,38 @@ export default function EventCard({
             </div>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={async () => {
-                  setMsg("");
-                  const { data } = await supabase.auth.getUser();
-                  const user = data?.user;
+              {!hideJoinButton && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMsg("");
+                    const { data } = await supabase.auth.getUser();
+                    const user = data?.user;
 
-                  if (!user) {
-                    alert("Please sign in to purchase tickets.");
-                    window.location.href = "/auth";
-                    return;
-                  }
+                    if (!user) {
+                      alert("Please sign in to purchase tickets.");
+                      window.location.href = "/auth";
+                      return;
+                    }
 
-                  if (is_paid && price > 0) {
-                    setShowTicketModal(true);
-                  } else {
-                    await handleSignUp();
-                  }
-                }}
-                disabled={signing || seats_left === 0}
-                className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {seats_left === 0
-                  ? "Sold out"
-                  : signing
-                  ? "Signing you up…"
-                  : is_paid && price > 0
-                  ? `Add To Basket £${price}`
-                  : "Join Free"}
-              </button>
-
+                    if (is_paid && price > 0) {
+                      setShowTicketModal(true);
+                    } else {
+                      await handleSignUp();
+                    }
+                  }}
+                  disabled={signing || seats_left === 0}
+                  className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {seats_left === 0
+                    ? "Sold out"
+                    : signing
+                    ? "Signing you up…"
+                    : is_paid && price > 0
+                    ? `Add To Basket £${price}`
+                    : "Join Free"}
+                </button>
+              )}
               {/* 🎟 Ticket Quantity Modal */}
               <TicketModal
                 isOpen={showTicketModal}

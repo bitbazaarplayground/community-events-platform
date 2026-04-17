@@ -43,7 +43,6 @@ export default function MyTickets() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState("upcoming");
 
   useEffect(() => {
     let active = true;
@@ -62,6 +61,7 @@ export default function MyTickets() {
   // ✅ Updated: Fetch from payments, ensure `quantity` and `events` join are correct
   async function fetchPage(nextPage = 0, reset = false) {
     if (!user) return;
+
     setLoading(true);
     setErr("");
 
@@ -103,6 +103,7 @@ export default function MyTickets() {
       .filter((r) => r.events)
       .map((r) => ({
         id: r.events.id,
+        created_at: r.created_at,
         title: r.events.title,
         date_time: r.events.date_time,
         location: r.events.location,
@@ -132,14 +133,14 @@ export default function MyTickets() {
     return rows
       .filter((ev) => {
         const t = ev.date_time ? new Date(ev.date_time).getTime() : 0;
-        return tab === "upcoming" ? t >= now : t < now;
+        return t >= now;
       })
       .sort((a, b) => {
         const ta = a.date_time ? new Date(a.date_time).getTime() : 0;
         const tb = b.date_time ? new Date(b.date_time).getTime() : 0;
-        return tab === "upcoming" ? ta - tb : tb - ta;
+        return ta - tb;
       });
-  }, [rows, tab]);
+  }, [rows]);
 
   if (!user) {
     return (
@@ -165,11 +166,7 @@ export default function MyTickets() {
 
       {/* Grid */}
       {filtered.length === 0 && !loading ? (
-        <p className="text-gray-600">
-          {tab === "upcoming"
-            ? "You have no upcoming bookings."
-            : "You have no past bookings yet."}
-        </p>
+        <p className="text-gray-600">You have no upcoming bookings.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((ev) => {
@@ -191,7 +188,7 @@ export default function MyTickets() {
 
             return (
               <div
-                key={ev.id}
+                key={`${ev.id}-${ev.created_at}`}
                 className="bg-white rounded-lg shadow hover:shadow-md transition overflow-hidden flex flex-col"
               >
                 <img
